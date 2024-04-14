@@ -17,4 +17,3 @@ extension _LocalExtension on Future<InAppDatabase> {
     return db.output(key, builder);
   }
 }
-
