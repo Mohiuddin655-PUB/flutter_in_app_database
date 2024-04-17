@@ -1,10 +1,13 @@
-import 'package:in_app_database/src/external/configs.dart';
-
 part 'field_path.dart';
 part 'field_value.dart';
 part 'filter.dart';
+part 'paging_options.dart';
+part 'query_builder.dart';
+part 'selection.dart';
+part 'sorting.dart';
 
-class InAppQuery extends Query {
+class Query {
+  final Object? field;
   final Object? isEqualTo;
   final Object? isNotEqualTo;
   final Object? isLessThan;
@@ -17,8 +20,8 @@ class InAppQuery extends Query {
   final Iterable<Object?>? whereNotIn;
   final bool? isNull;
 
-  const InAppQuery(
-    super.field, {
+  const Query(
+    this.field, {
     this.isEqualTo,
     this.isNotEqualTo,
     this.isLessThan,
@@ -32,8 +35,8 @@ class InAppQuery extends Query {
     this.isNull,
   });
 
-  InAppQuery.filter(
-    DataFilter super.filter, {
+  Query.filter(
+    Filter filter, {
     this.isEqualTo,
     this.isNotEqualTo,
     this.isLessThan,
@@ -45,10 +48,10 @@ class InAppQuery extends Query {
     this.whereIn,
     this.whereNotIn,
     this.isNull,
-  });
+  }) : field = filter;
 
-  InAppQuery.path(
-    DataFieldPath super.path, {
+  Query.path(
+    FieldPath path, {
     this.isEqualTo,
     this.isNotEqualTo,
     this.isLessThan,
@@ -60,5 +63,5 @@ class InAppQuery extends Query {
     this.whereIn,
     this.whereNotIn,
     this.isNull,
-  });
+  }) : field = path;
 }

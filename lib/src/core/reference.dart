@@ -2,7 +2,7 @@ part of 'base.dart';
 
 abstract class InAppReference {
   final String reference;
-  final InAppDatabaseInstance db;
+  final InAppDatabase db;
 
   const InAppReference({
     required this.reference,

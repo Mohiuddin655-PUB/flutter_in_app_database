@@ -1,20 +1,22 @@
 part of 'query.dart';
 
-enum InAppFieldPathType {
+enum FieldPaths {
   documentId,
-  none,
+  none;
+
+  bool get isDocumentId => this == documentId;
 }
 
-class DataFieldPath {
+class FieldPath {
   final Object? field;
-  final InAppFieldPathType type;
+  final FieldPaths type;
 
-  const DataFieldPath(
+  const FieldPath(
     this.field, [
-    this.type = InAppFieldPathType.none,
+    this.type = FieldPaths.none,
   ]);
 
-  static DataFieldPath get documentId {
-    return const DataFieldPath(null, InAppFieldPathType.documentId);
+  static FieldPath get documentId {
+    return const FieldPath(null, FieldPaths.documentId);
   }
 }

@@ -1,11 +1,9 @@
 part of 'base.dart';
 
-typedef InAppQuerySnapshotNotifier = StreamController<InAppQuerySnapshot?>;
-
 class InAppQueryReference extends InAppCollectionReference {
-  final List<InAppQuery> queries;
+  final List<Query> queries;
   final List<Selection> selections;
-  final List<DataSorting> sorts;
+  final List<Sorting> sorts;
   final PagingOptions options;
   final bool counterMode;
 
@@ -45,8 +43,8 @@ class InAppQueryReference extends InAppCollectionReference {
       selections: selections,
       sorts: sorts,
       options: options.copy(
-        initialFetchingSize: limit,
-        fetchingSize: limit,
+        initialSize: limit,
+        fetchSize: limit,
         fetchFromLast: fetchFromLast,
       ),
       counterMode: counterMode,
@@ -58,7 +56,7 @@ class InAppQueryReference extends InAppCollectionReference {
     bool descending = true,
   }) {
     if (field is String) {
-      sorts.add(DataSorting(field, descending));
+      sorts.add(Sorting(field, descending));
     }
     return InAppQueryReference(
       db: db,
@@ -73,9 +71,9 @@ class InAppQueryReference extends InAppCollectionReference {
     );
   }
 
-  InAppQueryReference _selection(Object? snapshot, SelectionType type) {
+  InAppQueryReference _selection(Object? snapshot, Selections type) {
     if (snapshot is InAppDocument || snapshot is Iterable<InAppValue>) {
-      selections.add(Selection(snapshot, type));
+      selections.add(Selection.from(snapshot, type));
     }
     return InAppQueryReference(
       db: db,
@@ -104,7 +102,7 @@ class InAppQueryReference extends InAppCollectionReference {
     Iterable<Object?>? whereNotIn,
     bool? isNull,
   }) {
-    queries.add(InAppQuery(
+    queries.add(Query(
       field,
       isEqualTo: isEqualTo,
       isNotEqualTo: isNotEqualTo,
@@ -132,34 +130,40 @@ class InAppQueryReference extends InAppCollectionReference {
   }
 
   InAppQueryReference endAtDocument(InAppValue? snapshot) {
-    return _selection(snapshot, SelectionType.endAtDocument);
+    return _selection(snapshot, Selections.endAtDocument);
   }
 
   InAppQueryReference endAt(Iterable<InAppValue>? values) {
-    return _selection(values, SelectionType.endAt);
+    return _selection(values, Selections.endAt);
   }
 
   InAppQueryReference endBeforeDocument(InAppValue? snapshot) {
-    return _selection(snapshot, SelectionType.endBeforeDocument);
+    return _selection(snapshot, Selections.endBeforeDocument);
   }
 
   InAppQueryReference endBefore(Iterable<InAppValue>? values) {
-    return _selection(values, SelectionType.endBefore);
+    return _selection(values, Selections.endBefore);
   }
 
   InAppQueryReference startAfterDocument(InAppValue? snapshot) {
-    return _selection(snapshot, SelectionType.startAfterDocument);
+    return _selection(snapshot, Selections.startAfterDocument);
   }
 
   InAppQueryReference startAfter(Iterable<InAppValue>? values) {
-    return _selection(values, SelectionType.startAfter);
+    return _selection(values, Selections.startAfter);
   }
 
   InAppQueryReference startAtDocument(InAppValue? snapshot) {
-    return _selection(snapshot, SelectionType.startAfterDocument);
+    return _selection(snapshot, Selections.startAfterDocument);
   }
 
   InAppQueryReference startAt(Iterable<InAppValue>? values) {
-    return _selection(values, SelectionType.startAt);
+    return _selection(values, Selections.startAt);
+  }
+
+  @override
+  Future<InAppQuerySnapshot> get() {
+    // TODO: implement get
+    return super.get();
   }
 }

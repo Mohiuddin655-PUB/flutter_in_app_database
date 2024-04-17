@@ -1,6 +1,6 @@
 part of 'query.dart';
 
-enum DataFieldValueType {
+enum FieldValues {
   arrayUnion,
   arrayRemove,
   delete,
@@ -9,29 +9,29 @@ enum DataFieldValueType {
   none,
 }
 
-class DataFieldValue {
+class FieldValue {
   final Object? value;
-  final DataFieldValueType type;
+  final FieldValues type;
 
-  const DataFieldValue(this.value, [this.type = DataFieldValueType.none]);
+  const FieldValue(this.value, [this.type = FieldValues.none]);
 
-  factory DataFieldValue.arrayUnion(List<dynamic> elements) {
-    return DataFieldValue(elements, DataFieldValueType.arrayUnion);
+  factory FieldValue.arrayUnion(List<dynamic> elements) {
+    return FieldValue(elements, FieldValues.arrayUnion);
   }
 
-  factory DataFieldValue.arrayRemove(List<dynamic> elements) {
-    return DataFieldValue(elements, DataFieldValueType.arrayRemove);
+  factory FieldValue.arrayRemove(List<dynamic> elements) {
+    return FieldValue(elements, FieldValues.arrayRemove);
   }
 
-  factory DataFieldValue.delete() {
-    return const DataFieldValue(null, DataFieldValueType.delete);
+  factory FieldValue.delete() {
+    return const FieldValue(null, FieldValues.delete);
   }
 
-  factory DataFieldValue.serverTimestamp() {
-    return const DataFieldValue(null, DataFieldValueType.serverTimestamp);
+  factory FieldValue.serverTimestamp() {
+    return const FieldValue(null, FieldValues.serverTimestamp);
   }
 
-  factory DataFieldValue.increment(num value) {
-    return DataFieldValue(value, DataFieldValueType.increment);
+  factory FieldValue.increment(num value) {
+    return FieldValue(value, FieldValues.increment);
   }
 }

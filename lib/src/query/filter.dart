@@ -1,6 +1,6 @@
 part of 'query.dart';
 
-class DataFilter {
+class Filter {
   final Object field;
   final Object? isEqualTo;
   final Object? isNotEqualTo;
@@ -14,7 +14,7 @@ class DataFilter {
   final Iterable<Object?>? whereNotIn;
   final bool? isNull;
 
-  const DataFilter(
+  const Filter(
     this.field, {
     this.isEqualTo,
     this.isNotEqualTo,
@@ -29,39 +29,39 @@ class DataFilter {
     this.isNull,
   });
 
-  static DataFilter and(
-    DataFilter filter1,
-    DataFilter filter2, [
-    DataFilter? filter3,
-    DataFilter? filter4,
-    DataFilter? filter5,
-    DataFilter? filter6,
-    DataFilter? filter7,
-    DataFilter? filter8,
-    DataFilter? filter9,
-    DataFilter? filter10,
-    DataFilter? filter11,
-    DataFilter? filter12,
-    DataFilter? filter13,
-    DataFilter? filter14,
-    DataFilter? filter15,
-    DataFilter? filter16,
-    DataFilter? filter17,
-    DataFilter? filter18,
-    DataFilter? filter19,
-    DataFilter? filter20,
-    DataFilter? filter21,
-    DataFilter? filter22,
-    DataFilter? filter23,
-    DataFilter? filter24,
-    DataFilter? filter25,
-    DataFilter? filter26,
-    DataFilter? filter27,
-    DataFilter? filter28,
-    DataFilter? filter29,
-    DataFilter? filter30,
+  static Filter and(
+    Filter filter1,
+    Filter filter2, [
+    Filter? filter3,
+    Filter? filter4,
+    Filter? filter5,
+    Filter? filter6,
+    Filter? filter7,
+    Filter? filter8,
+    Filter? filter9,
+    Filter? filter10,
+    Filter? filter11,
+    Filter? filter12,
+    Filter? filter13,
+    Filter? filter14,
+    Filter? filter15,
+    Filter? filter16,
+    Filter? filter17,
+    Filter? filter18,
+    Filter? filter19,
+    Filter? filter20,
+    Filter? filter21,
+    Filter? filter22,
+    Filter? filter23,
+    Filter? filter24,
+    Filter? filter25,
+    Filter? filter26,
+    Filter? filter27,
+    Filter? filter28,
+    Filter? filter29,
+    Filter? filter30,
   ]) {
-    return DataFilter.and(
+    return Filter.and(
       filter1,
       filter2,
       filter3,
@@ -95,39 +95,39 @@ class DataFilter {
     );
   }
 
-  static DataFilter or(
-    DataFilter filter1,
-    DataFilter filter2, [
-    DataFilter? filter3,
-    DataFilter? filter4,
-    DataFilter? filter5,
-    DataFilter? filter6,
-    DataFilter? filter7,
-    DataFilter? filter8,
-    DataFilter? filter9,
-    DataFilter? filter10,
-    DataFilter? filter11,
-    DataFilter? filter12,
-    DataFilter? filter13,
-    DataFilter? filter14,
-    DataFilter? filter15,
-    DataFilter? filter16,
-    DataFilter? filter17,
-    DataFilter? filter18,
-    DataFilter? filter19,
-    DataFilter? filter20,
-    DataFilter? filter21,
-    DataFilter? filter22,
-    DataFilter? filter23,
-    DataFilter? filter24,
-    DataFilter? filter25,
-    DataFilter? filter26,
-    DataFilter? filter27,
-    DataFilter? filter28,
-    DataFilter? filter29,
-    DataFilter? filter30,
+  static Filter or(
+    Filter filter1,
+    Filter filter2, [
+    Filter? filter3,
+    Filter? filter4,
+    Filter? filter5,
+    Filter? filter6,
+    Filter? filter7,
+    Filter? filter8,
+    Filter? filter9,
+    Filter? filter10,
+    Filter? filter11,
+    Filter? filter12,
+    Filter? filter13,
+    Filter? filter14,
+    Filter? filter15,
+    Filter? filter16,
+    Filter? filter17,
+    Filter? filter18,
+    Filter? filter19,
+    Filter? filter20,
+    Filter? filter21,
+    Filter? filter22,
+    Filter? filter23,
+    Filter? filter24,
+    Filter? filter25,
+    Filter? filter26,
+    Filter? filter27,
+    Filter? filter28,
+    Filter? filter29,
+    Filter? filter30,
   ]) {
-    return DataFilter.or(
+    return Filter.or(
       filter1,
       filter2,
       filter3,

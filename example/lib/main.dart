@@ -3,6 +3,7 @@ import 'dart:developer';
 
 import 'package:flutter/material.dart';
 import 'package:in_app_database/in_app_database.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 Future<void> main() async {
   await test();
@@ -10,59 +11,54 @@ Future<void> main() async {
 }
 
 Future<void> test() async {
-  final preferences = {};
-  await InAppDatabaseInstance.init(
-    reader: (InAppDataReader reader) async {
-      if (reader.type.isCollection) {
-        final data = preferences[reader.collectionPath];
-        return data;
-      } else {
-        final data = preferences[reader.collectionPath]?[reader.documentId];
-        return data;
-      }
+  final db = await SharedPreferences.getInstance();
+
+  await InAppDatabase.init(
+    reader: (String key) async {
+      return db.getString(key);
     },
-    writer: (InAppDataWriter writer) async {
-      if (writer.type.isCollection) {
-        preferences[writer.collectionPath] = writer.value;
+    writer: (String key, String? value) async {
+      if (value != null) {
+        return db.setString(key, value);
       } else {
-        preferences.putIfAbsent(writer.collectionPath, () => {});
-        preferences[writer.collectionPath]?[writer.documentId] = writer.value;
+        return db.remove(key);
       }
-      return true;
     },
   );
 
   // COLLECTIONS
-  InAppDatabaseInstance.i.ref("carts").snapshots().listen((event) {
+  InAppDatabase.i.ref("carts").snapshots().listen((event) {
     log("CARTS: collectionListen => $event");
   });
 
-  final collectionAdd = await InAppDatabaseInstance.i.ref("carts").add({"quantity": 5});
+  final collectionAdd = await InAppDatabase.i.ref("carts").add({"quantity": 5});
   log("CARTS: collectionAdd => $collectionAdd");
 
-  final collectionGet = await InAppDatabaseInstance.i.ref("carts").get();
+  final collectionGet = await InAppDatabase.i.ref("carts").get();
   log("CARTS: collectionGet => $collectionGet");
 
-  final collectionDelete = await InAppDatabaseInstance.i.ref("carts").delete();
+  final collectionDelete = await InAppDatabase.i.ref("carts").delete();
   log("CARTS: collectionDelete => $collectionDelete");
 
   // DOCUMENTS
-  InAppDatabaseInstance.i.ref("carts").doc("0").snapshots().listen((event) {
+  InAppDatabase.i.ref("carts").doc("0").snapshots().listen((event) {
     log("CARTS: listen => $event");
   });
 
-  preferences.clear();
-
-  final documentSet = await InAppDatabaseInstance.i.ref("carts").doc("0").set({"name": "Simple name!"});
+  final documentSet =
+      await InAppDatabase.i.ref("carts").doc("0").set({"name": "Simple name!"});
   log("CARTS: documentSet => $documentSet");
 
-  final documentGet = await InAppDatabaseInstance.i.ref("carts").doc("0").get();
+  final documentGet = await InAppDatabase.i.ref("carts").doc("0").get();
   log("CARTS: documentGet => $documentGet");
 
-  final documentUpdate = await InAppDatabaseInstance.i.ref("carts").doc("0").update({"name": "Updated name!"});
+  final documentUpdate = await InAppDatabase.i
+      .ref("carts")
+      .doc("0")
+      .update({"name": "Updated name!"});
   log("CARTS: documentUpdate => $documentUpdate");
 
-  final documentDelete = await InAppDatabaseInstance.i.ref("carts").doc("0").delete();
+  final documentDelete = await InAppDatabase.i.ref("carts").doc("0").delete();
   log("CARTS: documentDelete => $documentDelete");
 }
 

@@ -1,7 +1,30 @@
 part of 'base.dart';
 
-typedef InAppDocumentSnapshotNotifier
-    = StreamController<InAppDocumentSnapshot?>;
+class InAppDocumentSnapshot {
+  final String id;
+  final InAppDocument? _doc;
+
+  InAppDocument? get data => _doc;
+
+  bool get exists => _doc != null && _doc!.isNotEmpty;
+
+  const InAppDocumentSnapshot(
+      this.id, [
+        this._doc,
+      ]);
+
+  InAppDocumentSnapshot copy({
+    String? id,
+    InAppDocument? doc,
+  }) {
+    return InAppDocumentSnapshot(id ?? this.id, doc ?? _doc);
+  }
+
+  @override
+  String toString() {
+    return "InAppDocumentSnapshot(id: $id, doc: $_doc)";
+  }
+}
 
 class InAppDocumentReference extends InAppReference {
   final String collectionPath;
@@ -69,7 +92,7 @@ class InAppDocumentReference extends InAppReference {
             collectionPath: collectionPath,
             collectionId: collectionId,
             documentId: documentId,
-            type: InAppDataWriterType.document,
+            type: InAppWriteType.document,
             value: data,
           )
           .then(_n);
@@ -95,7 +118,7 @@ class InAppDocumentReference extends InAppReference {
             collectionPath: collectionPath,
             collectionId: collectionId,
             documentId: documentId,
-            type: InAppDataWriterType.document,
+            type: InAppWriteType.document,
             value: current,
           )
           .then(_n);
@@ -115,7 +138,7 @@ class InAppDocumentReference extends InAppReference {
           collectionPath: collectionPath,
           collectionId: collectionId,
           documentId: documentId,
-          type: InAppDataWriterType.document,
+          type: InAppWriteType.document,
         )
         .then(_n);
   }
@@ -133,7 +156,7 @@ class InAppDocumentReference extends InAppReference {
       collectionPath: collectionPath,
       collectionId: collectionId,
       documentId: documentId,
-      type: InAppDataReaderType.document,
+      type: InAppReadType.document,
     )
         .then((value) {
       final x = value.docs.firstOrNull;

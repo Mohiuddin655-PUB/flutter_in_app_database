@@ -1,5 +1,37 @@
 part of 'base.dart';
 
+class InAppQuerySnapshot {
+  final String id;
+  final List<InAppDocumentSnapshot> docs;
+  final List<InAppDocumentChange> docChanges;
+
+  bool get exists => docs.isNotEmpty;
+
+  const InAppQuerySnapshot(
+    this.id, [
+    this.docs = const [],
+    this.docChanges = const [],
+  ]);
+
+  @override
+  String toString() {
+    return "InAppQuerySnapshot (path: $id, docs: $docs, docChanges: $docChanges)";
+  }
+}
+
+class InAppDocumentChange {
+  final InAppDocumentSnapshot doc;
+
+  const InAppDocumentChange({
+    required this.doc,
+  });
+
+  @override
+  String toString() {
+    return "InAppDocumentChange(doc: $doc)";
+  }
+}
+
 class InAppCollectionReference extends InAppReference {
   final String collectionPath;
   final String collectionId;
@@ -53,7 +85,7 @@ class InAppCollectionReference extends InAppReference {
           collectionPath: collectionPath,
           collectionId: collectionId,
           documentId: collectionId,
-          type: InAppDataWriterType.collection,
+          type: InAppWriteType.collection,
         )
         .then(_n);
   }
@@ -64,7 +96,7 @@ class InAppCollectionReference extends InAppReference {
       collectionPath: collectionPath,
       collectionId: collectionId,
       documentId: collectionId,
-      type: InAppDataReaderType.collection,
+      type: InAppReadType.collection,
     );
   }
 
