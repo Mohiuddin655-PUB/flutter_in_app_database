@@ -75,7 +75,15 @@ class FirestoreQuery {
     return FirestoreQuery(List.from(_data));
   }
 
-  FirestoreQuery orderBy(Iterable<Sorting> fields) {
+  FirestoreQuery orderBy(String field, {bool descending = false}) {
+    _data.sort((a, b) {
+      var comparison = a[field].compareTo(b[field]);
+      return descending ? -comparison : comparison;
+    });
+    return this;
+  }
+
+  FirestoreQuery orderByIterable(Iterable<Sorting> fields) {
     _data.sort((a, b) {
       int i = 0;
       while (i < fields.length) {
@@ -95,11 +103,103 @@ class FirestoreQuery {
       }
       return 0;
     });
-    return this;
+    return FirestoreQuery(List.from(_data));
   }
 
-  Future<List<Map<String, dynamic>>> get() async {
-    await Future.delayed(const Duration(milliseconds: 100));
-    return _data;
+  FirestoreQuery startAt(List<dynamic> values) {
+    _data = _data.where((doc) {
+      for (int i = 0; i < values.length; i++) {
+        if (doc.values.elementAt(i).compareTo(values[i]) < 0) {
+          return false;
+        }
+        if (doc.values.elementAt(i).compareTo(values[i]) > 0) {
+          return true;
+        }
+      }
+      return true;
+    }).toList();
+    return FirestoreQuery(List.from(_data));
+  }
+
+  FirestoreQuery startAfter(List<dynamic> values) {
+    _data = _data.where((doc) {
+      for (int i = 0; i < values.length; i++) {
+        if (doc.values.elementAt(i).compareTo(values[i]) <= 0) {
+          return false;
+        }
+      }
+      return true;
+    }).toList();
+    return FirestoreQuery(List.from(_data));
+  }
+
+  FirestoreQuery startAfterDocument(Map<String, dynamic> document) {
+    _data = _data.skipWhile((doc) {
+      for (int i = 0; i < doc.length; i++) {
+        var field = doc.keys.elementAt(i);
+        if (doc[field].compareTo(document[field]) <= 0) {
+          return true;
+        }
+        if (doc[field].compareTo(document[field]) > 0) {
+          return false;
+        }
+      }
+      return false;
+    }).toList();
+    return FirestoreQuery(List.from(_data));
+  }
+
+  FirestoreQuery endAt(List<dynamic> values) {
+    _data = _data.where((doc) {
+      for (int i = 0; i < values.length; i++) {
+        if (doc.values.elementAt(i).compareTo(values[i]) > 0) {
+          return false;
+        }
+        if (doc.values.elementAt(i).compareTo(values[i]) < 0) {
+          return true;
+        }
+      }
+      return true;
+    }).toList();
+    return FirestoreQuery(List.from(_data));
+  }
+
+  FirestoreQuery endBefore(List<dynamic> values) {
+    _data = _data.where((doc) {
+      for (int i = 0; i < values.length; i++) {
+        if (doc.values.elementAt(i).compareTo(values[i]) >= 0) {
+          return false;
+        }
+      }
+      return true;
+    }).toList();
+    return FirestoreQuery(List.from(_data));
+  }
+
+  FirestoreQuery endBeforeDocument(Map<String, dynamic> document) {
+    _data = _data.takeWhile((doc) {
+      for (int i = 0; i < doc.length; i++) {
+        var field = doc.keys.elementAt(i);
+        var fieldValue = doc[field];
+        var documentValue = document[field];
+        if (fieldValue.compareTo(documentValue) < 0) {
+          return true;
+        }
+        if (fieldValue.compareTo(documentValue) > 0) {
+          return false;
+        }
+      }
+      return false;
+    }).toList();
+    return FirestoreQuery(List.from(_data));
+  }
+
+  FirestoreQuery limit(int limit) {
+    _data = _data.take(limit).toList();
+    return FirestoreQuery(List.from(_data));
+  }
+
+  Future<List<Map<String, dynamic>>> get() {
+    return Future.delayed(const Duration(milliseconds: 100)).then((_) => _data);
   }
 }
