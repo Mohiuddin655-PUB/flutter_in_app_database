@@ -1,47 +1,55 @@
 part of 'base.dart';
 
-class InAppQueryReference extends InAppReference {
+typedef InAppQuerySnapshotNotifier = StreamController<InAppQuerySnapshot?>;
+
+class InAppQueryReference extends InAppCollectionReference {
   final List<InAppQuery> queries;
   final List<Selection> selections;
   final List<DataSorting> sorts;
   final PagingOptions options;
   final bool counterMode;
 
-  const InAppQueryReference(
-    super.base,
-    super.reference, [
+  const InAppQueryReference({
+    required super.db,
+    required super.reference,
+    required super.collectionPath,
+    required super.collectionId,
     this.queries = const [],
     this.selections = const [],
     this.sorts = const [],
     this.options = const PagingOptions(),
     this.counterMode = false,
-  ]);
+  });
 
   InAppQueryReference count() {
     return InAppQueryReference(
-      reference,
-      instance,
-      queries,
-      selections,
-      sorts,
-      options,
-      true,
+      db: db,
+      reference: reference,
+      collectionPath: collectionPath,
+      collectionId: collectionId,
+      queries: queries,
+      selections: selections,
+      sorts: sorts,
+      options: options,
+      counterMode: true,
     );
   }
 
   InAppQueryReference limit(int limit, bool fetchFromLast) {
     return InAppQueryReference(
-      reference,
-      instance,
-      queries,
-      selections,
-      sorts,
-      options.copy(
+      db: db,
+      reference: reference,
+      collectionPath: collectionPath,
+      collectionId: collectionId,
+      queries: queries,
+      selections: selections,
+      sorts: sorts,
+      options: options.copy(
         initialFetchingSize: limit,
         fetchingSize: limit,
         fetchFromLast: fetchFromLast,
       ),
-      counterMode,
+      counterMode: counterMode,
     );
   }
 
@@ -53,13 +61,15 @@ class InAppQueryReference extends InAppReference {
       sorts.add(DataSorting(field, descending));
     }
     return InAppQueryReference(
-      reference,
-      instance,
-      queries,
-      selections,
-      sorts,
-      options,
-      counterMode,
+      db: db,
+      reference: reference,
+      collectionPath: collectionPath,
+      collectionId: collectionId,
+      queries: queries,
+      selections: selections,
+      sorts: sorts,
+      options: options,
+      counterMode: counterMode,
     );
   }
 
@@ -68,13 +78,15 @@ class InAppQueryReference extends InAppReference {
       selections.add(Selection(snapshot, type));
     }
     return InAppQueryReference(
-      reference,
-      instance,
-      queries,
-      selections,
-      sorts,
-      options,
-      counterMode,
+      db: db,
+      reference: reference,
+      collectionPath: collectionPath,
+      collectionId: collectionId,
+      queries: queries,
+      selections: selections,
+      sorts: sorts,
+      options: options,
+      counterMode: counterMode,
     );
   }
 
@@ -107,13 +119,15 @@ class InAppQueryReference extends InAppReference {
       isNull: isNull,
     ));
     return InAppQueryReference(
-      reference,
-      instance,
-      queries,
-      selections,
-      sorts,
-      options,
-      counterMode,
+      db: db,
+      reference: reference,
+      collectionPath: collectionPath,
+      collectionId: collectionId,
+      queries: queries,
+      selections: selections,
+      sorts: sorts,
+      options: options,
+      counterMode: counterMode,
     );
   }
 
@@ -147,29 +161,5 @@ class InAppQueryReference extends InAppReference {
 
   InAppQueryReference startAt(Iterable<InAppValue>? values) {
     return _selection(values, SelectionType.startAt);
-  }
-
-  Future<InAppQuerySnapshot> get() {
-    return _r(reference).then((data) {
-      return InAppQuerySnapshot(
-        reference,
-        List.generate(data.entries.length, (index) {
-          final item = data.entries.elementAt(index);
-          return InAppDocumentSnapshot(item.key, item.value);
-        }),
-      );
-    });
-  }
-
-  Stream<InAppQuerySnapshot> snapshots() {
-    final controller = StreamController<InAppQuerySnapshot>();
-    final data = instance.collections[reference];
-    if (data is List<InAppDocument>) {
-      final x = data.map((e) => InAppDocumentSnapshot(reference, e)).toList();
-      controller.add(InAppQuerySnapshot(reference, x));
-    } else {
-      controller.add(InAppQuerySnapshot(reference, []));
-    }
-    return controller.stream;
   }
 }

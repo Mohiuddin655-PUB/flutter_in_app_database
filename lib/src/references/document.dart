@@ -1,13 +1,50 @@
 part of 'base.dart';
 
+typedef InAppDocumentSnapshotNotifier
+    = StreamController<InAppDocumentSnapshot?>;
+
 class InAppDocumentReference extends InAppReference {
-  const InAppDocumentReference(
-    super.reference,
-    super.instance,
-  );
+  final String collectionPath;
+  final String collectionId;
+  final String documentId;
+  final InAppCollectionReference parent;
+
+  const InAppDocumentReference({
+    required super.reference,
+    required super.db,
+    required this.collectionPath,
+    required this.collectionId,
+    required this.documentId,
+    required this.parent,
+  });
+
+  InAppCollectionNotifier get collectionNotifier {
+    return db.notifier(collectionPath) ?? InAppCollectionNotifier(null);
+  }
+
+  InAppDocumentNotifier? get documentNotifier {
+    return collectionNotifier.children[documentId];
+  }
+
+  T _n<T>(T value, [InAppDocumentSnapshot? snapshot]) {
+    if (documentNotifier != null) {
+      get().then((value) {
+        documentNotifier!.value = value;
+        parent.notify();
+      });
+    }
+    return value;
+  }
+
+  void notify([InAppDocumentSnapshot? snapshot]) => _n(null, snapshot);
 
   InAppCollectionReference collection(String field) {
-    return InAppCollectionReference("$reference/$field", instance);
+    return InAppCollectionReference(
+      db: db,
+      reference: "$reference/$field",
+      collectionPath: "$collectionPath/$documentId/$field",
+      collectionId: field,
+    );
   }
 
   /// Method to set data in the document.
@@ -19,14 +56,23 @@ class InAppDocumentReference extends InAppReference {
   /// ```dart
   /// documentRef.set({'name': 'John', 'age': 30});
   /// ```
-  Future<InAppDocumentSnapshot> set(
+  Future<bool> set(
     InAppDocument data, [
     InAppSetOptions options = const InAppSetOptions(),
   ]) {
     if (options.merge) {
       return update(data);
     } else {
-      return _w(reference, data).then((_) => get());
+      return db
+          .write(
+            reference: reference,
+            collectionPath: collectionPath,
+            collectionId: collectionId,
+            documentId: documentId,
+            type: InAppDataWriterType.document,
+            value: data,
+          )
+          .then(_n);
     }
   }
 
@@ -39,8 +85,21 @@ class InAppDocumentReference extends InAppReference {
   /// ```dart
   /// documentRef.update({'age': 31});
   /// ```
-  Future<InAppDocumentSnapshot> update(InAppDocument data) {
-    return _u(reference, data).then((_) => get());
+  Future<bool> update(InAppDocument data) {
+    return get().then((value) {
+      final current = value?.data ?? {};
+      current.addAll(data);
+      return db
+          .write(
+            reference: reference,
+            collectionPath: collectionPath,
+            collectionId: collectionId,
+            documentId: documentId,
+            type: InAppDataWriterType.document,
+            value: current,
+          )
+          .then(_n);
+    });
   }
 
   /// Method to delete the document.
@@ -49,8 +108,16 @@ class InAppDocumentReference extends InAppReference {
   /// ```dart
   /// documentRef.delete();
   /// ```
-  Future<InAppDocumentSnapshot> delete() {
-    return _d(reference).then((_) => get());
+  Future<bool> delete() {
+    return db
+        .write(
+          reference: reference,
+          collectionPath: collectionPath,
+          collectionId: collectionId,
+          documentId: documentId,
+          type: InAppDataWriterType.document,
+        )
+        .then(_n);
   }
 
   /// Method to get all data in the document.
@@ -59,20 +126,34 @@ class InAppDocumentReference extends InAppReference {
   /// ```dart
   /// Data documentData = documentRef.get();
   /// ```
-  Future<InAppDocumentSnapshot> get() {
-    return _r(reference).then((data) {
-      return InAppDocumentSnapshot(reference, data);
+  Future<InAppDocumentSnapshot?> get() {
+    return db
+        .read(
+      reference: reference,
+      collectionPath: collectionPath,
+      collectionId: collectionId,
+      documentId: documentId,
+      type: InAppDataReaderType.document,
+    )
+        .then((value) {
+      final x = value.docs.firstOrNull;
+      if (x is InAppDocumentSnapshot) {
+        return x.data != null && x.data!.isNotEmpty ? x : null;
+      } else {
+        return null;
+      }
     });
   }
 
   Stream<InAppDocumentSnapshot> snapshots() {
     final controller = StreamController<InAppDocumentSnapshot>();
-    final data = instance.collections[reference];
-    if (data is InAppDocument) {
-      controller.add(InAppDocumentSnapshot(reference, data));
-    } else {
-      controller.add(InAppDocumentSnapshot(reference, null));
-    }
+    db.setNotifier(collectionPath, collectionNotifier.set(documentId));
+    documentNotifier?.addListener(() {
+      controller.add(
+        documentNotifier?.value ?? InAppDocumentSnapshot(documentId),
+      );
+    });
+    _n(null);
     return controller.stream;
   }
 }

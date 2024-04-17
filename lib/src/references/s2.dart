@@ -1,8 +1,9 @@
+/*
 part of 'base.dart';
 
 typedef InAppCollections = Map<String, Object?>;
-typedef InAppDatabaseReader = Future<Object?> Function(InAppDataReader reader);
-typedef InAppDatabaseWriter = Future<bool> Function(InAppDataWriter writer);
+typedef InAppDatabaseReader = Future<String?> Function(String key);
+typedef InAppDatabaseWriter = Future<bool> Function(String key, String? value);
 
 class InAppParams {
   final String reference;
@@ -104,9 +105,9 @@ class InAppDatabaseInstance {
   }
 
   void setNotifier(
-    String reference, [
-    InAppCollectionNotifier? notifier,
-  ]) {
+      String reference, [
+        InAppCollectionNotifier? notifier,
+      ]) {
     notifiers.putIfAbsent(reference, () {
       return notifier ?? InAppCollectionNotifier(null);
     });
@@ -125,6 +126,44 @@ class InAppDatabaseInstance {
     );
   }
 
+  Future<InAppQuerySnapshot> _r(InAppDataReader r) async {
+    final raw = await reader(r.collectionPath);
+    final value = raw is String ? jsonDecode(raw) : raw;
+    if (r.type.isCollection && value is Map) {
+      final data = value.entries
+          .map((e) {
+        final x = e.value;
+        final y = x is String ? jsonDecode(x) : x;
+        final z = y is InAppDocument ? y : null;
+        return InAppDocumentSnapshot(e.key, z);
+      })
+          .where((i) => i.data != null && i.data!.isNotEmpty)
+          .toList();
+      return InAppQuerySnapshot(r.collectionId, data);
+    } else if (value is InAppDocument) {
+      final snapshot = InAppDocumentSnapshot(r.documentId, value);
+      return InAppQuerySnapshot(r.collectionId, [snapshot]);
+    } else {
+      return InAppQuerySnapshot(r.collectionId);
+    }
+  }
+
+  Future<bool> _w(InAppDataWriter w) async {
+    final value = await reader(w.collectionPath);
+    final raw = value is String ? jsonDecode(value) : null;
+    final base = raw is Map ? raw : {};
+    if (w.type.isCollection) {
+      base[w.collectionPath] = w.value;
+    } else {
+      base.putIfAbsent(w.collectionPath, () => {});
+      base[w.collectionPath]?[w.documentId] = w.value;
+    }
+    final body = jsonEncode(base);
+    return writer(w.collectionPath, body).then((value) {
+      return true;
+    });
+  }
+
   Future<InAppQuerySnapshot> read({
     required InAppDataReaderType type,
     required String reference,
@@ -132,34 +171,14 @@ class InAppDatabaseInstance {
     required String collectionId,
     required String documentId,
   }) {
-    final data = InAppDataReader(
+    return _r(InAppDataReader(
       reference: reference,
       collectionPath: collectionPath,
       collectionId: collectionId,
       documentPath: "$collectionPath/$documentId",
       documentId: documentId,
       type: type,
-    );
-    return reader(data).then((raw) {
-      final value = raw is String ? jsonDecode(raw) : raw;
-      if (type.isCollection && value is Map) {
-        final data = value.entries
-            .map((e) {
-              final x = e.value;
-              final y = x is String ? jsonDecode(x) : x;
-              final z = y is InAppDocument ? y : null;
-              return InAppDocumentSnapshot(e.key, z);
-            })
-            .where((i) => i.data != null && i.data!.isNotEmpty)
-            .toList();
-        return InAppQuerySnapshot(collectionId, data);
-      } else if (value is InAppDocument) {
-        final snapshot = InAppDocumentSnapshot(documentId, value);
-        return InAppQuerySnapshot(collectionId, [snapshot]);
-      } else {
-        return InAppQuerySnapshot(collectionId);
-      }
-    });
+    ));
   }
 
   Future<bool> write({
@@ -170,7 +189,7 @@ class InAppDatabaseInstance {
     required String documentId,
     Object? value,
   }) {
-    final data = InAppDataWriter(
+    return _w(InAppDataWriter(
       reference: reference,
       collectionPath: collectionPath,
       collectionId: collectionId,
@@ -178,7 +197,7 @@ class InAppDatabaseInstance {
       documentId: documentId,
       value: value == null ? null : jsonEncode(value),
       type: type,
-    );
-    return writer(data);
+    ));
   }
 }
+*/

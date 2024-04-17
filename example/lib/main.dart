@@ -1,121 +1,69 @@
 import 'dart:async';
+import 'dart:developer';
 
 import 'package:flutter/material.dart';
 import 'package:in_app_database/in_app_database.dart';
 
-Future<void> main() async{
+Future<void> main() async {
   await test();
   runApp(const MyApp());
 }
 
 Future<void> test() async {
-  await InAppDatabaseInstance.init();
+  final preferences = {};
+  await InAppDatabaseInstance.init(
+    reader: (InAppDataReader reader) async {
+      if (reader.type.isCollection) {
+        final data = preferences[reader.collectionPath];
+        return data;
+      } else {
+        final data = preferences[reader.collectionPath]?[reader.documentId];
+        return data;
+      }
+    },
+    writer: (InAppDataWriter writer) async {
+      if (writer.type.isCollection) {
+        preferences[writer.collectionPath] = writer.value;
+      } else {
+        preferences.putIfAbsent(writer.collectionPath, () => {});
+        preferences[writer.collectionPath]?[writer.documentId] = writer.value;
+      }
+      return true;
+    },
+  );
 
-  if (true){
-    for (int i = 1; i <= 10; i++) {
-      // Create new post (posts/post_id)
-      InAppDatabaseInstance.i.ref("posts").document("post_id_$i").set({
-        "id": "post_id_$i",
-        "title": "This is a new title of $i",
-        "content": "This is a new content of $i",
-        "author_id": "1",
-        "category": "Technology",
-        "tags": ["programming", "javascript"],
-        "created_at": "2024-02-06T00:00:00Z",
-        "updated_at": "2024-02-06T00:00:00Z",
-        "published": true,
-      }).then(documentLog);
-    }
-  }
+  // COLLECTIONS
+  InAppDatabaseInstance.i.ref("carts").snapshots().listen((event) {
+    log("CARTS: collectionListen => $event");
+  });
 
-  InAppDatabaseInstance.i.ref("posts").get().then(collectionLog);
-  return;
-  // Update post by id (posts/post_id)
-  InAppDatabaseInstance.i.ref("posts").document("post_id_1").update({
-    "title": "Updated Blog Post",
-    "content": "This post has been updated!",
-  }).then(documentLog);
+  final collectionAdd = await InAppDatabaseInstance.i.ref("carts").add({"quantity": 5});
+  log("CARTS: collectionAdd => $collectionAdd");
 
-  // Delete post by id (posts/post_id)
-  InAppDatabaseInstance.i
-      .ref("posts")
-      .document("post_id_2")
-      .delete()
-      .then(documentLog);
+  final collectionGet = await InAppDatabaseInstance.i.ref("carts").get();
+  log("CARTS: collectionGet => $collectionGet");
 
-  // Retrieve post by id (posts/post_id)
-  InAppDatabaseInstance.i
-      .ref("posts")
-      .document("post_id_3")
-      .get()
-      .then(documentLog);
+  final collectionDelete = await InAppDatabaseInstance.i.ref("carts").delete();
+  log("CARTS: collectionDelete => $collectionDelete");
 
-  // Retrieve all post (posts)
-  InAppDatabaseInstance.i.ref("posts").get().then(collectionLog);
+  // DOCUMENTS
+  InAppDatabaseInstance.i.ref("carts").doc("0").snapshots().listen((event) {
+    log("CARTS: listen => $event");
+  });
 
-  // Create new post comment (posts/post_id/comments/comment_id)
-  for (int i = 1; i <= 5; i++) {
-    InAppDatabaseInstance.i
-        .ref("posts")
-        .document("post_id_4")
-        .collection("comments")
-        .document("comment_id_$i")
-        .set({
-      "id": "comment_id_$i",
-      "post_id": "post_id_4",
-      "content": "Great post!",
-      "author_id": "2",
-      "created_at": "2024-02-06T00:00:00Z",
-      "likes": [],
-      "dislikes": [],
-    }).then(documentLog);
-  }
+  preferences.clear();
 
-  // Update post comment by id (posts/post_id/comments/comment_id)
-  InAppDatabaseInstance.i
-      .ref("posts")
-      .document("post_id_4")
-      .collection("comments")
-      .document("comment_id_1")
-      .update({
-    "content": "This is updated comment!",
-  }).then(documentLog);
+  final documentSet = await InAppDatabaseInstance.i.ref("carts").doc("0").set({"name": "Simple name!"});
+  log("CARTS: documentSet => $documentSet");
 
-  // Delete post comment by id (posts/post_id/comments/comment_id)
-  InAppDatabaseInstance.i
-      .ref("posts")
-      .document("post_id_4")
-      .collection("comments")
-      .document("comment_id_2")
-      .delete()
-      .then(documentLog);
+  final documentGet = await InAppDatabaseInstance.i.ref("carts").doc("0").get();
+  log("CARTS: documentGet => $documentGet");
 
-  // Retrieve post comment by id (posts/post_id/comments/comment_id)
-  InAppDatabaseInstance.i
-      .ref("posts")
-      .document("post_id_4")
-      .collection("comments")
-      .document("comment_id_3")
-      .get()
-      .then(documentLog);
+  final documentUpdate = await InAppDatabaseInstance.i.ref("carts").doc("0").update({"name": "Updated name!"});
+  log("CARTS: documentUpdate => $documentUpdate");
 
-  // Retrieve all post comments (posts/post_id/comments)
-  InAppDatabaseInstance.i
-      .ref("posts")
-      .document("post_id_4")
-      .collection("comments")
-      .get()
-      .then(collectionLog);
-
-  print(InAppDatabaseInstance.i.collections);
-}
-
-void collectionLog(InAppQuerySnapshot value) {
-  print(value.docs);
-}
-
-void documentLog(InAppDocumentSnapshot value) {
-  // print(value.data);
+  final documentDelete = await InAppDatabaseInstance.i.ref("carts").doc("0").delete();
+  log("CARTS: documentDelete => $documentDelete");
 }
 
 class MyApp extends StatelessWidget {
