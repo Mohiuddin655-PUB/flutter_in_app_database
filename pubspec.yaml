@@ -1,6 +1,6 @@
 name: in_app_database
 description: "Efficient in-app database for seamless data storage and retrieval, ensuring optimal performance and user experience."
-version: 1.0.2
+version: 1.1.0
 repository: https://github.com/Mohiuddin655-PUB/flutter_in_app_database.git
 
 environment:
@@ -11,6 +11,7 @@ dependencies:
   flutter:
     sdk: flutter
   flutter_entity: ^1.0.0
+  in_app_query: ^1.0.2
 
 dev_dependencies:
   flutter_test:

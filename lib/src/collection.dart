@@ -1,4 +1,10 @@
-part of 'base.dart';
+import 'dart:async';
+
+import 'base.dart';
+import 'document.dart';
+import 'notifier.dart';
+import 'params.dart';
+import 'reference.dart';
 
 class InAppQuerySnapshot {
   final String id;
@@ -15,7 +21,7 @@ class InAppQuerySnapshot {
 
   @override
   String toString() {
-    return "InAppQuerySnapshot (path: $id, docs: $docs, docChanges: $docChanges)";
+    return "InAppQuerySnapshot(id: $id, docs: $docs, docChanges: $docChanges)";
   }
 }
 
@@ -43,7 +49,7 @@ class InAppCollectionReference extends InAppReference {
     required this.collectionId,
   });
 
-  InAppCollectionNotifier? get notifier => db.notifier(collectionPath);
+  InAppQueryNotifier? get notifier => db.notifier(collectionPath);
 
   T _n<T>(T value, [InAppQuerySnapshot? snapshot]) {
     if (notifier != null) {

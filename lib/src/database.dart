@@ -1,10 +1,16 @@
-part of 'base.dart';
+import 'dart:convert';
+
+import 'base.dart';
+import 'collection.dart';
+import 'document.dart';
+import 'notifier.dart';
+import 'params.dart';
 
 class InAppDatabase {
   final String name;
   final InAppDatabaseReader reader;
   final InAppDatabaseWriter writer;
-  final Map<String, InAppCollectionNotifier> notifiers = {};
+  final Map<String, InAppQueryNotifier> notifiers = {};
 
   InAppDatabase._({
     required this.name,
@@ -28,10 +34,10 @@ class InAppDatabase {
     return _i!;
   }
 
-  InAppCollectionNotifier? notifier(String reference) {
+  T? notifier<T extends InAppNotifier>(String reference) {
     final x = notifiers[reference];
-    if (x != null) {
-      return x;
+    if (x is T) {
+      return x as T;
     } else {
       return null;
     }
@@ -39,10 +45,10 @@ class InAppDatabase {
 
   void setNotifier(
     String reference, [
-    InAppCollectionNotifier? notifier,
+    InAppQueryNotifier? notifier,
   ]) {
     notifiers.putIfAbsent(reference, () {
-      return notifier ?? InAppCollectionNotifier(null);
+      return notifier ?? InAppQueryNotifier(null);
     });
   }
 

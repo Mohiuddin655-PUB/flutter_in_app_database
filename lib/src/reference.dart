@@ -1,4 +1,4 @@
-part of 'base.dart';
+import 'database.dart';
 
 abstract class InAppReference {
   final String reference;

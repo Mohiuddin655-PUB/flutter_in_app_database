@@ -1,4 +1,10 @@
-part of 'base.dart';
+import 'dart:async';
+
+import 'base.dart';
+import 'collection.dart';
+import 'notifier.dart';
+import 'params.dart';
+import 'reference.dart';
 
 class InAppDocumentSnapshot {
   final String id;
@@ -9,9 +15,9 @@ class InAppDocumentSnapshot {
   bool get exists => _doc != null && _doc!.isNotEmpty;
 
   const InAppDocumentSnapshot(
-      this.id, [
-        this._doc,
-      ]);
+    this.id, [
+    this._doc,
+  ]);
 
   InAppDocumentSnapshot copy({
     String? id,
@@ -41,8 +47,8 @@ class InAppDocumentReference extends InAppReference {
     required this.parent,
   });
 
-  InAppCollectionNotifier get collectionNotifier {
-    return db.notifier(collectionPath) ?? InAppCollectionNotifier(null);
+  InAppQueryNotifier get collectionNotifier {
+    return db.notifier(collectionPath) ?? InAppQueryNotifier(null);
   }
 
   InAppDocumentNotifier? get documentNotifier {

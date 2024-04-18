@@ -110,6 +110,14 @@ packages:
       path: ".."
       relative: true
     source: path
+    version: "1.1.0"
+  in_app_query:
+    dependency: transitive
+    description:
+      name: in_app_query
+      sha256: "1b33adaea8db5096dd73861b51486c40d05fdf84ebeb91d6551c05e967e855c7"
+      url: "https://pub.dev"
+    source: hosted
     version: "1.0.2"
   leak_tracker:
     dependency: transitive
