@@ -1,8 +1,4 @@
-import 'package:flutter/foundation.dart';
-
-import 'collection.dart';
-import 'counter.dart';
-import 'document.dart';
+part of 'database.dart';
 
 class InAppNotifier<T> extends ValueNotifier<T> {
   InAppNotifier(super.data);
@@ -15,9 +11,14 @@ class InAppQueryNotifier extends InAppNotifier<InAppQuerySnapshot?> {
 
   InAppQueryNotifier(super.data);
 
-  InAppQueryNotifier set(String id) {
-    children.putIfAbsent(id, () => InAppDocumentNotifier(null));
-    return this;
+  InAppDocumentNotifier set(
+    String id, [
+    InAppDocumentSnapshot? value,
+  ]) {
+    final i = children[id];
+    if (i == null) children[id] = InAppDocumentNotifier(value);
+    final x = i ?? children[id];
+    return x is InAppDocumentNotifier ? x : InAppDocumentNotifier(null);
   }
 
   @override
@@ -30,26 +31,6 @@ class InAppQueryNotifier extends InAppNotifier<InAppQuerySnapshot?> {
       }).toList();
       if (id.isNotEmpty && data.isNotEmpty) {
         super.value = InAppQuerySnapshot(id, data);
-      } else {
-        super.value = null;
-      }
-    } else {
-      super.value = null;
-    }
-  }
-}
-
-class InAppCounterNotifier extends InAppNotifier<InAppCounterSnapshot?> {
-  InAppCounterNotifier(super.data);
-
-  @override
-  set value(InAppCounterSnapshot? value) {
-    if (value != null) {
-      final id = value.id;
-      final x = value.docs;
-      final y = value.docChanges;
-      if (id.isNotEmpty && (x > 0 || y > 0)) {
-        super.value = InAppCounterSnapshot(id, x, y);
       } else {
         super.value = null;
       }

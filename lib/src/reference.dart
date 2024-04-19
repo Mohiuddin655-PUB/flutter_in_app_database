@@ -1,4 +1,4 @@
-import 'database.dart';
+part of 'database.dart';
 
 abstract class InAppReference {
   final String reference;
@@ -10,4 +10,6 @@ abstract class InAppReference {
   });
 
   String get id => DateTime.now().millisecondsSinceEpoch.toString();
+
+  String get idField => "_id";
 }

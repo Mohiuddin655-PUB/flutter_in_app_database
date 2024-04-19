@@ -1,9 +1,4 @@
-import 'dart:async';
-
-import 'package:in_app_database/in_app_database.dart';
-import 'package:in_app_query/in_app_query.dart';
-
-import 'counter.dart';
+part of 'database.dart';
 
 class InAppQueryReference extends InAppCollectionReference {
   final List<Query> queries;
@@ -60,6 +55,7 @@ class InAppQueryReference extends InAppCollectionReference {
     Object field, {
     bool descending = false,
   }) {
+    List<Sorting> sorts = List.from(this.sorts);
     if (field is String) {
       sorts.add(Sorting(field, descending: descending));
     }
@@ -77,6 +73,7 @@ class InAppQueryReference extends InAppCollectionReference {
   }
 
   InAppQueryReference _selection(Object? snapshot, Selections type) {
+    List<Selection> selections = List.from(this.selections);
     if (snapshot is InAppDocument || snapshot is Iterable<InAppValue>) {
       selections.add(Selection.from(snapshot, type));
     }
@@ -107,6 +104,7 @@ class InAppQueryReference extends InAppCollectionReference {
     Iterable<Object?>? whereNotIn,
     bool? isNull,
   }) {
+    List<Query> queries = List.from(this.queries);
     queries.add(Query(
       field,
       isEqualTo: isEqualTo,
@@ -165,23 +163,6 @@ class InAppQueryReference extends InAppCollectionReference {
   InAppQueryReference startAt(Iterable<InAppValue>? values) {
     return _selection(values, Selections.startAt);
   }
-
-  @override
-  InAppQueryNotifier? get notifier => db.notifier("$collectionPath-query");
-
-  T _n<T>(T value, [InAppQuerySnapshot? snapshot]) {
-    if (notifier != null) {
-      if (snapshot == null) {
-        get().then((value) => notifier!.value = value);
-      } else {
-        notifier!.value = snapshot;
-      }
-    }
-    return value;
-  }
-
-  @override
-  void notify([InAppQuerySnapshot? snapshot]) => _n(null, snapshot);
 
   @override
   Future<InAppQuerySnapshot> get() {
@@ -270,12 +251,10 @@ class InAppQueryReference extends InAppCollectionReference {
 
   @override
   Stream<InAppQuerySnapshot> snapshots() {
-    final controller = StreamController<InAppQuerySnapshot>();
-    db.setNotifier("$collectionPath-query");
-    notifier?.addListener(() {
-      controller.add(notifier?.value ?? InAppQuerySnapshot(collectionId));
-    });
-    _n(null);
-    return controller.stream;
+    final c = StreamController<InAppQuerySnapshot>();
+    final n = db.addListener(collectionPath);
+    n.addListener(() => get().then(c.add));
+    Future.delayed(const Duration(seconds: 1)).whenComplete(notify);
+    return c.stream;
   }
 }

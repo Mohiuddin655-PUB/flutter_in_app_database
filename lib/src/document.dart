@@ -1,36 +1,4 @@
-import 'dart:async';
-
-import 'base.dart';
-import 'collection.dart';
-import 'notifier.dart';
-import 'params.dart';
-import 'reference.dart';
-
-class InAppDocumentSnapshot {
-  final String id;
-  final InAppDocument? _doc;
-
-  InAppDocument? get data => _doc;
-
-  bool get exists => _doc != null && _doc!.isNotEmpty;
-
-  const InAppDocumentSnapshot(
-    this.id, [
-    this._doc,
-  ]);
-
-  InAppDocumentSnapshot copy({
-    String? id,
-    InAppDocument? doc,
-  }) {
-    return InAppDocumentSnapshot(id ?? this.id, doc ?? _doc);
-  }
-
-  @override
-  String toString() {
-    return "InAppDocumentSnapshot(id: $id, doc: $_doc)";
-  }
-}
+part of 'database.dart';
 
 class InAppDocumentReference extends InAppReference {
   final String collectionPath;
@@ -47,28 +15,31 @@ class InAppDocumentReference extends InAppReference {
     required this.parent,
   });
 
-  InAppQueryNotifier get collectionNotifier {
-    return db.notifier(collectionPath) ?? InAppQueryNotifier(null);
+  InAppQueryNotifier? get collectionNotifier {
+    final x = db.notifiers[collectionPath];
+    return x is InAppQueryNotifier ? x : null;
   }
 
   InAppDocumentNotifier? get documentNotifier {
-    return collectionNotifier.children[documentId];
+    return collectionNotifier?.children[documentId];
   }
 
   T _n<T>(T value, [InAppDocumentSnapshot? snapshot]) {
+    if (collectionNotifier != null) parent.notify();
     if (documentNotifier != null) {
-      get().then((value) {
-        documentNotifier!.value = value;
-        parent.notify();
-      });
+      if (snapshot == null) {
+        get().then((_) => documentNotifier!.value = _);
+      } else {
+        documentNotifier!.value = snapshot;
+      }
     }
     return value;
   }
 
   void notify([InAppDocumentSnapshot? snapshot]) => _n(null, snapshot);
 
-  InAppCollectionReference collection(String field) {
-    return InAppCollectionReference(
+  InAppQueryReference collection(String field) {
+    return InAppQueryReference(
       db: db,
       reference: "$reference/$field",
       collectionPath: "$collectionPath/$documentId/$field",
@@ -85,10 +56,13 @@ class InAppDocumentReference extends InAppReference {
   /// ```dart
   /// documentRef.set({'name': 'John', 'age': 30});
   /// ```
-  Future<bool> set(
+  Future<InAppDocumentSnapshot?> set(
     InAppDocument data, [
     InAppSetOptions options = const InAppSetOptions(),
   ]) {
+    final i = data[idField];
+    final id = i is String ? i : documentId;
+    data[idField] = id;
     if (options.merge) {
       return update(data);
     } else {
@@ -101,7 +75,8 @@ class InAppDocumentReference extends InAppReference {
             type: InAppWriteType.document,
             value: data,
           )
-          .then(_n);
+          .then(_n)
+          .then((_) => _ ? InAppDocumentSnapshot(id, data) : null);
     }
   }
 
@@ -114,10 +89,11 @@ class InAppDocumentReference extends InAppReference {
   /// ```dart
   /// documentRef.update({'age': 31});
   /// ```
-  Future<bool> update(InAppDocument data) {
+  Future<InAppDocumentSnapshot?> update(InAppDocument data) {
     return get().then((value) {
       final current = value?.data ?? {};
       current.addAll(data);
+      current[idField] = documentId;
       return db
           .write(
             reference: reference,
@@ -127,7 +103,8 @@ class InAppDocumentReference extends InAppReference {
             type: InAppWriteType.document,
             value: current,
           )
-          .then(_n);
+          .then(_n)
+          .then((_) => _ ? InAppDocumentSnapshot(id, current) : null);
     });
   }
 
@@ -158,31 +135,20 @@ class InAppDocumentReference extends InAppReference {
   Future<InAppDocumentSnapshot?> get() {
     return db
         .read(
-      reference: reference,
-      collectionPath: collectionPath,
-      collectionId: collectionId,
-      documentId: documentId,
-      type: InAppReadType.document,
-    )
-        .then((value) {
-      final x = value.docs.firstOrNull;
-      if (x is InAppDocumentSnapshot) {
-        return x.data != null && x.data!.isNotEmpty ? x : null;
-      } else {
-        return null;
-      }
-    });
+          reference: reference,
+          collectionPath: collectionPath,
+          collectionId: collectionId,
+          documentId: documentId,
+          type: InAppReadType.document,
+        )
+        .then((_) => _ is InAppDocumentSnapshot ? _ : null);
   }
 
   Stream<InAppDocumentSnapshot> snapshots() {
-    final controller = StreamController<InAppDocumentSnapshot>();
-    db.setNotifier(collectionPath, collectionNotifier.set(documentId));
-    documentNotifier?.addListener(() {
-      controller.add(
-        documentNotifier?.value ?? InAppDocumentSnapshot(documentId),
-      );
-    });
-    _n(null);
-    return controller.stream;
+    final c = StreamController<InAppDocumentSnapshot>();
+    final n = db.addChildListener(collectionPath, documentId);
+    n.addListener(() => c.add(n.value ?? InAppDocumentSnapshot(documentId)));
+    Future.delayed(const Duration(seconds: 1)).whenComplete(notify);
+    return c.stream;
   }
 }

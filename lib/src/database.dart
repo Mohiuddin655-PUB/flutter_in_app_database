@@ -1,16 +1,26 @@
+import 'dart:async';
 import 'dart:convert';
 
-import 'base.dart';
-import 'collection.dart';
-import 'document.dart';
-import 'notifier.dart';
-import 'params.dart';
+import 'package:flutter/foundation.dart';
+import 'package:in_app_query/in_app_query.dart';
+
+import '../core/paging_options.dart';
+
+part 'base.dart';
+part 'collection.dart';
+part 'counter.dart';
+part 'document.dart';
+part 'notifier.dart';
+part 'params.dart';
+part 'query.dart';
+part 'reference.dart';
+part 'snapshots.dart';
 
 class InAppDatabase {
   final String name;
   final InAppDatabaseReader reader;
   final InAppDatabaseWriter writer;
-  final Map<String, InAppQueryNotifier> notifiers = {};
+  final Map<String, InAppNotifier> notifiers = {};
 
   InAppDatabase._({
     required this.name,
@@ -34,30 +44,26 @@ class InAppDatabase {
     return _i!;
   }
 
-  T? notifier<T extends InAppNotifier>(String reference) {
-    final x = notifiers[reference];
-    if (x is T) {
-      return x as T;
-    } else {
-      return null;
-    }
-  }
-
-  void setNotifier(
+  InAppQueryNotifier addListener(
     String reference, [
-    InAppQueryNotifier? notifier,
+    InAppQuerySnapshot? value,
   ]) {
-    notifiers.putIfAbsent(reference, () {
-      return notifier ?? InAppQueryNotifier(null);
-    });
+    final i = notifiers[reference];
+    if (i == null) notifiers[reference] = InAppQueryNotifier(value);
+    final x = i ?? notifiers[reference];
+    return x is InAppQueryNotifier ? x : InAppQueryNotifier(value);
   }
 
-  void removeNotifier(String reference) {
-    notifiers.remove(reference);
+  InAppDocumentNotifier addChildListener(
+    String reference,
+    String id, [
+    InAppDocumentSnapshot? value,
+  ]) {
+    return addListener(reference).set(id, value);
   }
 
-  InAppCollectionReference ref(String field) {
-    return InAppCollectionReference(
+  InAppQueryReference ref(String field) {
+    return InAppQueryReference(
       db: this,
       reference: "$name$field",
       collectionPath: field,
@@ -65,25 +71,38 @@ class InAppDatabase {
     );
   }
 
-  Future<InAppQuerySnapshot> _r(InAppReadParams r) {
+  InAppQueryReference collection(String field) => ref(field);
+
+  Future<InAppSnapshot> _r(InAppReadParams r) {
     return reader(r.collectionPath).then((raw) {
+      final type = r.type;
       final value = raw is String ? jsonDecode(raw) : raw;
-      if (r.type.isCollection && value is Map) {
-        final data = value.entries
-            .map((e) {
-              final x = e.value;
-              final y = x is String ? jsonDecode(x) : x;
-              final z = y is InAppDocument ? y : null;
-              return InAppDocumentSnapshot(e.key, z);
-            })
-            .where((i) => i.data != null && i.data!.isNotEmpty)
-            .toList();
-        return InAppQuerySnapshot(r.collectionId, data);
-      } else if (value is InAppDocument) {
-        final snapshot = InAppDocumentSnapshot(r.documentId, value);
-        return InAppQuerySnapshot(r.collectionId, [snapshot]);
+      if (value is Map) {
+        if (type.isCollection) {
+          final data = value.entries
+              .map((e) {
+                final x = e.value;
+                final y = x is String ? jsonDecode(x) : x;
+                final z = y is InAppDocument ? y : null;
+                return InAppDocumentSnapshot(e.key, z);
+              })
+              .where((i) => i.data != null && i.data!.isNotEmpty)
+              .toList();
+          return InAppQuerySnapshot(r.collectionId, data);
+        } else if (type.isDocument) {
+          final docId = r.documentId;
+          final raw = value[docId];
+          final doc = raw is String
+              ? jsonDecode(raw)
+              : raw is InAppDocument
+                  ? raw
+                  : null;
+          return InAppDocumentSnapshot(docId, doc);
+        } else {
+          return const InAppErrorSnapshot("Type isn't valid!");
+        }
       } else {
-        return InAppQuerySnapshot(r.collectionId);
+        return const InAppUnknownSnapshot("Data not found!");
       }
     });
   }
@@ -92,20 +111,19 @@ class InAppDatabase {
     return reader(w.collectionPath).then((value) {
       final raw = value is String ? jsonDecode(value) : null;
       final base = raw is Map ? raw : {};
-      if (w.type.isCollection) {
-        base[w.collectionPath] = w.value;
+      final data = w.value;
+      final id = w.documentId;
+      if (data != null) {
+        base[id] = data;
       } else {
-        base.putIfAbsent(w.collectionPath, () => {});
-        base[w.collectionPath]?[w.documentId] = w.value;
+        base.remove(id);
       }
       final body = jsonEncode(base);
-      return writer(w.collectionPath, body).then((value) {
-        return true;
-      });
+      return writer(w.collectionPath, body);
     });
   }
 
-  Future<InAppQuerySnapshot> read({
+  Future<InAppSnapshot> read({
     required InAppReadType type,
     required String reference,
     required String collectionPath,

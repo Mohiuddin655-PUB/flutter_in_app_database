@@ -1,42 +1,4 @@
-import 'dart:async';
-
-import 'base.dart';
-import 'document.dart';
-import 'notifier.dart';
-import 'params.dart';
-import 'reference.dart';
-
-class InAppQuerySnapshot {
-  final String id;
-  final List<InAppDocumentSnapshot> docs;
-  final List<InAppDocumentChange> docChanges;
-
-  bool get exists => docs.isNotEmpty;
-
-  const InAppQuerySnapshot(
-    this.id, [
-    this.docs = const [],
-    this.docChanges = const [],
-  ]);
-
-  @override
-  String toString() {
-    return "InAppQuerySnapshot(id: $id, docs: $docs, docChanges: $docChanges)";
-  }
-}
-
-class InAppDocumentChange {
-  final InAppDocumentSnapshot doc;
-
-  const InAppDocumentChange({
-    required this.doc,
-  });
-
-  @override
-  String toString() {
-    return "InAppDocumentChange(doc: $doc)";
-  }
-}
+part of 'database.dart';
 
 class InAppCollectionReference extends InAppReference {
   final String collectionPath;
@@ -49,14 +11,15 @@ class InAppCollectionReference extends InAppReference {
     required this.collectionId,
   });
 
-  InAppQueryNotifier? get notifier => db.notifier(collectionPath);
+  InAppQueryNotifier? get notifier {
+    final x = db.notifiers[collectionPath];
+    return x is InAppQueryNotifier ? x : null;
+  }
 
   T _n<T>(T value, [InAppQuerySnapshot? snapshot]) {
     if (notifier != null) {
       if (snapshot == null) {
-        get().then((value) {
-          return notifier!.value = value;
-        });
+        get().then((_) => notifier!.value = _);
       } else {
         notifier!.value = snapshot;
       }
@@ -78,41 +41,29 @@ class InAppCollectionReference extends InAppReference {
   }
 
   Future<InAppDocumentSnapshot?> add(InAppDocument data) {
-    final id = this.id;
-    return doc(id).set(data).then((value) {
-      return value ? InAppDocumentSnapshot(id, data) : null;
-    }).then(_n);
+    final i = data[idField];
+    final id = i is String ? i : this.id;
+    data[idField] = id;
+    return doc(id).set(data).then(_n);
   }
 
-  Future<bool> delete() {
+  Future<InAppQuerySnapshot> get() {
     return db
-        .write(
+        .read(
           reference: reference,
           collectionPath: collectionPath,
           collectionId: collectionId,
           documentId: collectionId,
-          type: InAppWriteType.collection,
+          type: InAppReadType.collection,
         )
-        .then(_n);
-  }
-
-  Future<InAppQuerySnapshot> get() {
-    return db.read(
-      reference: reference,
-      collectionPath: collectionPath,
-      collectionId: collectionId,
-      documentId: collectionId,
-      type: InAppReadType.collection,
-    );
+        .then((_) => _ is InAppQuerySnapshot ? _ : InAppQuerySnapshot(id));
   }
 
   Stream<InAppQuerySnapshot> snapshots() {
-    final controller = StreamController<InAppQuerySnapshot>();
-    db.setNotifier(collectionPath);
-    notifier?.addListener(() {
-      controller.add(notifier?.value ?? InAppQuerySnapshot(collectionId));
-    });
-    _n(null);
-    return controller.stream;
+    final c = StreamController<InAppQuerySnapshot>();
+    final n = db.addListener(collectionPath);
+    n.addListener(() => c.add(n.value ?? InAppQuerySnapshot(collectionId)));
+    Future.delayed(const Duration(seconds: 1)).whenComplete(notify);
+    return c.stream;
   }
 }

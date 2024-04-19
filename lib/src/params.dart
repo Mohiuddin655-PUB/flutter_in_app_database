@@ -1,3 +1,5 @@
+part of 'database.dart';
+
 typedef InAppDatabaseReader = Future<String?> Function(String key);
 typedef InAppDatabaseWriter = Future<bool> Function(String key, String? value);
 

@@ -111,6 +111,14 @@ packages:
       relative: true
     source: path
     version: "1.1.0"
+  in_app_faker:
+    dependency: "direct main"
+    description:
+      name: in_app_faker
+      sha256: "0bdcbfa7fa9463a74ac7f1a12a6d3a77d4ace17d6a217568beae5223b1aca5f4"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.0.0"
   in_app_query:
     dependency: transitive
     description:
