@@ -1,3 +1,7 @@
+## 1.2.2
+
+* Auto collection null checker add
+
 ## 1.2.1
 
 * Unnecessary code removes
