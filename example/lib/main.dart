@@ -7,23 +7,22 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // final db = await SharedPreferences.getInstance();
-  Map<String, dynamic> db = {};
+  final db = await SharedPreferences.getInstance();
+  // Map<String, dynamic> db = {};
   await InAppDatabase.init(
     reader: (String key) async {
-      // return db.getString(key);
-      final x = db[key];
-      return x;
+      return db.getString(key);
+      // return db[key];
     },
     writer: (String key, String? value) async {
       if (value != null) {
-        // return db.setString(key, value);
-        db[key] = value;
-        return true;
+        return db.setString(key, value);
+        // db[key] = value;
+        // return true;
       } else {
-        // return db.remove(key);
-        db.remove(key);
-        return true;
+        return db.remove(key);
+        // db.remove(key);
+        // return true;
       }
     },
   );
@@ -71,7 +70,24 @@ class _HomeState extends State<Home> {
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 const Text(
-                  "Realtime Single Data",
+                  "Counter Snapshot",
+                  style: TextStyle(
+                    color: Colors.black,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+                StreamBuilder(
+                  stream:
+                      InAppDatabase.i.collection("users").count().snapshots(),
+                  builder: (context, s) {
+                    final count = s.data?.docs ?? 0;
+                    return Text("Total users: $count");
+                  },
+                ),
+                const SizedBox(height: 24),
+                const Text(
+                  "Document Snapshot",
                   style: TextStyle(
                     color: Colors.black,
                     fontWeight: FontWeight.bold,
@@ -103,7 +119,7 @@ class _HomeState extends State<Home> {
                 ),
                 const SizedBox(height: 24),
                 const Text(
-                  "Realtime Multi-Data",
+                  "Collection Snapshots",
                   style: TextStyle(
                     color: Colors.black,
                     fontWeight: FontWeight.bold,
@@ -161,19 +177,23 @@ class _HomeState extends State<Home> {
           ),
           Button(
             text: "Set",
-            onClick: () => InAppDatabase.i.collection("users").doc("1").set({
-              "username": UserFaker.username,
-              "email": UserFaker.email,
-              "age": UserFaker.age,
-              "country": UserFaker.country,
-              "photoUrl": UserFaker.photoUrl,
-            }),
+            onClick: () {
+              InAppDatabase.i.collection("users").doc("1").set({
+                "username": UserFaker.username,
+                "email": UserFaker.email,
+                "age": UserFaker.age,
+                "country": UserFaker.country,
+                "photoUrl": UserFaker.photoUrl,
+              });
+            },
           ),
           Button(
             text: "Update",
-            onClick: () => InAppDatabase.i.collection("users").doc("1").update({
-              "updateAt": DateTime.now().millisecondsSinceEpoch.toString(),
-            }),
+            onClick: () {
+              InAppDatabase.i.collection("users").doc("1").update({
+                "updateAt": DateTime.now().millisecondsSinceEpoch.toString(),
+              });
+            },
           ),
           Button(
             text: "Delete",

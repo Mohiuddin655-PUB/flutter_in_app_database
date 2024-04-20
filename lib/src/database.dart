@@ -127,18 +127,23 @@ class InAppDatabase {
     required String documentId,
     InAppDocument? value,
   }) {
-    return _reader(collectionPath).then((root) {
-      final raw = root is String ? jsonDecode(root) : root;
-      final base = raw is Map ? raw : {};
-      final data = value == null ? null : jsonEncode(value);
-      final id = documentId;
-      if (data != null) {
-        base[id] = data;
-      } else {
-        base.remove(id);
-      }
-      final body = jsonEncode(base);
+    if (type.isDocument) {
+      return _reader(collectionPath).then((root) {
+        final raw = root is String ? jsonDecode(root) : root;
+        final base = raw is Map ? raw : {};
+        final data = value == null ? null : jsonEncode(value);
+        final id = documentId;
+        if (data != null) {
+          base[id] = data;
+        } else {
+          base.remove(id);
+        }
+        final body = jsonEncode(base);
+        return _writer(collectionPath, body);
+      });
+    } else {
+      final body = value is Map ? jsonEncode(value) : null;
       return _writer(collectionPath, body);
-    });
+    }
   }
 }

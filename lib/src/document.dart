@@ -120,13 +120,31 @@ class InAppDocumentReference extends InAppReference {
   Future<bool> delete() {
     return _db
         ._w(
-          reference: reference,
-          collectionPath: _p.path,
-          collectionId: _p.id,
-          documentId: id,
-          type: InAppWriteType.document,
-        )
-        .then(_n);
+      reference: reference,
+      collectionPath: _p.path,
+      collectionId: _p.id,
+      documentId: id,
+      type: InAppWriteType.document,
+    )
+        .then<bool>((_) {
+      if (_) {
+        return _p.get().then((value) {
+          if (!value.exists) {
+            return _db._w(
+              type: InAppWriteType.collection,
+              reference: _p.reference,
+              collectionPath: _p.path,
+              collectionId: _p.id,
+              documentId: _p.id,
+            );
+          } else {
+            return true;
+          }
+        });
+      } else {
+        return _;
+      }
+    }).then(_n);
   }
 
   /// Method to get all data in the document.

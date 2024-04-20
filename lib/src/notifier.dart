@@ -16,9 +16,9 @@ class _InAppQueryNotifier extends _InAppNotifier<InAppQuerySnapshot?> {
     InAppDocumentSnapshot? value,
   ]) {
     final i = children[id];
-    if (i == null) children[id] = _InAppDocumentNotifier(value);
+    if (i == null) children[id] = _InAppDocumentNotifier(value, id);
     final x = i ?? children[id];
-    return x is _InAppDocumentNotifier ? x : _InAppDocumentNotifier(null);
+    return x is _InAppDocumentNotifier ? x : _InAppDocumentNotifier(null, id);
   }
 
   @override
@@ -41,7 +41,9 @@ class _InAppQueryNotifier extends _InAppNotifier<InAppQuerySnapshot?> {
 }
 
 class _InAppDocumentNotifier extends _InAppNotifier<InAppDocumentSnapshot?> {
-  _InAppDocumentNotifier(super.data);
+  final String id;
+
+  _InAppDocumentNotifier(super.data, this.id);
 
   @override
   set value(InAppDocumentSnapshot? value) {
@@ -56,5 +58,10 @@ class _InAppDocumentNotifier extends _InAppNotifier<InAppDocumentSnapshot?> {
     } else {
       super.value = null;
     }
+  }
+
+  @override
+  String toString() {
+    return "DocumentNotifier($id)";
   }
 }
