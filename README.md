@@ -3,12 +3,14 @@
 ## INITIALIZATIONS:
 ```dart
 Future<void> main() async {
-  // Map<String, dynamic> db = {};
+  WidgetsFlutterBinding.ensureInitialized();
   final db = await SharedPreferences.getInstance();
+  // Map<String, dynamic> db = {};
   await InAppDatabase.init(
     reader: (String key) async {
       return db.getString(key);
-      // return db[key];
+      // final x = db[key];
+      // return x;
     },
     writer: (String key, String? value) async {
       if (value != null) {

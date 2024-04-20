@@ -127,8 +127,8 @@ class InAppDatabase {
     required String documentId,
     InAppDocument? value,
   }) {
-    return _reader(collectionPath).then((value) {
-      final raw = value is String ? jsonDecode(value) : null;
+    return _reader(collectionPath).then((root) {
+      final raw = root is String ? jsonDecode(root) : root;
       final base = raw is Map ? raw : {};
       final data = value == null ? null : jsonEncode(value);
       final id = documentId;

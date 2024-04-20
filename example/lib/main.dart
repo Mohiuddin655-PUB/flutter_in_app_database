@@ -3,24 +3,27 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:in_app_database/in_app_database.dart';
 import 'package:in_app_faker/in_app_faker.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 Future<void> main() async {
-  Map<String, dynamic> db = {};
+  WidgetsFlutterBinding.ensureInitialized();
   // final db = await SharedPreferences.getInstance();
+  Map<String, dynamic> db = {};
   await InAppDatabase.init(
     reader: (String key) async {
-      return db[key];
       // return db.getString(key);
+      final x = db[key];
+      return x;
     },
     writer: (String key, String? value) async {
       if (value != null) {
+        // return db.setString(key, value);
         db[key] = value;
         return true;
-        // return db.setString(key, value);
       } else {
+        // return db.remove(key);
         db.remove(key);
         return true;
-        // return db.remove(key);
       }
     },
   );
