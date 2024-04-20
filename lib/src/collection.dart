@@ -1,69 +1,69 @@
 part of 'database.dart';
 
-class InAppCollectionReference extends InAppReference {
-  final String collectionPath;
-  final String collectionId;
+abstract class InAppCollectionReference extends InAppReference {
+  final String path;
+  final String id;
 
   const InAppCollectionReference({
     required super.db,
     required super.reference,
-    required this.collectionPath,
-    required this.collectionId,
+    required this.path,
+    required this.id,
   });
 
-  InAppQueryNotifier? get notifier {
-    final x = db.notifiers[collectionPath];
-    return x is InAppQueryNotifier ? x : null;
+  _InAppQueryNotifier? get _notifier {
+    final x = _db._notifiers[path];
+    return x is _InAppQueryNotifier ? x : null;
   }
 
   T _n<T>(T value, [InAppQuerySnapshot? snapshot]) {
-    if (notifier != null) {
+    if (_notifier != null) {
       if (snapshot == null) {
-        get().then((_) => notifier!.value = _);
+        get().then((_) => _notifier!.value = _);
       } else {
-        notifier!.value = snapshot;
+        _notifier!.value = snapshot;
       }
     }
     return value;
   }
 
-  void notify([InAppQuerySnapshot? snapshot]) => _n(null, snapshot);
+  void _notify([InAppQuerySnapshot? snapshot]) => _n(null, snapshot);
+
+  String push() => _id;
 
   InAppDocumentReference doc(String field) {
     return InAppDocumentReference(
-      db: db,
+      db: _db,
       reference: "$reference/$field",
-      collectionPath: collectionPath,
-      collectionId: collectionId,
-      documentId: field,
+      id: field,
       parent: this,
     );
   }
 
   Future<InAppDocumentSnapshot?> add(InAppDocument data) {
-    final i = data[idField];
-    final id = i is String ? i : this.id;
-    data[idField] = id;
+    final i = data[_idField];
+    final id = i is String ? i : _id;
+    data[_idField] = id;
     return doc(id).set(data).then(_n);
   }
 
   Future<InAppQuerySnapshot> get() {
-    return db
-        .read(
+    return _db
+        ._r(
           reference: reference,
-          collectionPath: collectionPath,
-          collectionId: collectionId,
-          documentId: collectionId,
+          collectionPath: path,
+          collectionId: id,
+          documentId: id,
           type: InAppReadType.collection,
         )
-        .then((_) => _ is InAppQuerySnapshot ? _ : InAppQuerySnapshot(id));
+        .then((_) => _ is InAppQuerySnapshot ? _ : InAppQuerySnapshot(_id));
   }
 
   Stream<InAppQuerySnapshot> snapshots() {
     final c = StreamController<InAppQuerySnapshot>();
-    final n = db.addListener(collectionPath);
-    n.addListener(() => c.add(n.value ?? InAppQuerySnapshot(collectionId)));
-    Future.delayed(const Duration(seconds: 1)).whenComplete(notify);
+    final n = _db._addNotifier(path);
+    n.addListener(() => c.add(n.value ?? InAppQuerySnapshot(id)));
+    Future.delayed(const Duration(seconds: 1)).whenComplete(_notify);
     return c.stream;
   }
 }

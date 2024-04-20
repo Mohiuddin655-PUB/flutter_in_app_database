@@ -78,14 +78,6 @@ packages:
     description: flutter
     source: sdk
     version: "0.0.0"
-  flutter_entity:
-    dependency: transitive
-    description:
-      name: flutter_entity
-      sha256: "7e29b495160f71ec5a2992b9a1c3c69807bcc045c8108a029e99bb3af7748aa0"
-      url: "https://pub.dev"
-    source: hosted
-    version: "1.0.0"
   flutter_lints:
     dependency: "direct dev"
     description:
@@ -110,7 +102,7 @@ packages:
       path: ".."
       relative: true
     source: path
-    version: "1.1.0"
+    version: "1.2.0"
   in_app_faker:
     dependency: "direct main"
     description:

@@ -1,49 +1,45 @@
 part of 'database.dart';
 
 class InAppDocumentReference extends InAppReference {
-  final String collectionPath;
-  final String collectionId;
-  final String documentId;
-  final InAppCollectionReference parent;
+  final String id;
+  final InAppCollectionReference _p;
 
   const InAppDocumentReference({
     required super.reference,
     required super.db,
-    required this.collectionPath,
-    required this.collectionId,
-    required this.documentId,
-    required this.parent,
-  });
+    required this.id,
+    required InAppCollectionReference parent,
+  }) : _p = parent;
 
-  InAppQueryNotifier? get collectionNotifier {
-    final x = db.notifiers[collectionPath];
-    return x is InAppQueryNotifier ? x : null;
+  String get path => "${_p.path}/$id";
+
+  _InAppQueryNotifier? get _cn {
+    final x = _db._notifiers[_p.path];
+    return x is _InAppQueryNotifier ? x : null;
   }
 
-  InAppDocumentNotifier? get documentNotifier {
-    return collectionNotifier?.children[documentId];
-  }
+  _InAppDocumentNotifier? get _dn => _cn?.children[id];
 
   T _n<T>(T value, [InAppDocumentSnapshot? snapshot]) {
-    if (collectionNotifier != null) parent.notify();
-    if (documentNotifier != null) {
+    if (_cn != null) _p._notify();
+    if (_dn != null) {
       if (snapshot == null) {
-        get().then((_) => documentNotifier!.value = _);
+        get().then((_) => _dn!.value = _);
       } else {
-        documentNotifier!.value = snapshot;
+        _dn!.value = snapshot;
       }
     }
     return value;
   }
 
-  void notify([InAppDocumentSnapshot? snapshot]) => _n(null, snapshot);
+  void _notify([InAppDocumentSnapshot? snapshot]) => _n(null, snapshot);
 
   InAppQueryReference collection(String field) {
     return InAppQueryReference(
-      db: db,
+      db: _db,
       reference: "$reference/$field",
-      collectionPath: "$collectionPath/$documentId/$field",
-      collectionId: field,
+      path: "$path/$field",
+      id: field,
     );
   }
 
@@ -60,23 +56,23 @@ class InAppDocumentReference extends InAppReference {
     InAppDocument data, [
     InAppSetOptions options = const InAppSetOptions(),
   ]) {
-    final i = data[idField];
-    final id = i is String ? i : documentId;
-    data[idField] = id;
+    final i = data[_idField];
+    final mId = i is String ? i : id;
+    data[_idField] = mId;
     if (options.merge) {
       return update(data);
     } else {
-      return db
-          .write(
+      return _db
+          ._w(
             reference: reference,
-            collectionPath: collectionPath,
-            collectionId: collectionId,
-            documentId: documentId,
+            collectionPath: _p.path,
+            collectionId: _p.id,
+            documentId: mId,
             type: InAppWriteType.document,
             value: data,
           )
           .then(_n)
-          .then((_) => _ ? InAppDocumentSnapshot(id, data) : null);
+          .then((_) => _ ? InAppDocumentSnapshot(mId, data) : null);
     }
   }
 
@@ -87,24 +83,31 @@ class InAppDocumentReference extends InAppReference {
   ///
   /// Example:
   /// ```dart
-  /// documentRef.update({'age': 31});
+  /// documentRef.update({
+  ///     'name': Mr. X,
+  ///     'age': InAppFieldValue.increment(2),
+  ///     'balance': InAppFieldValue.increment(-10.2),
+  ///     'hobbies': InAppFieldValue.arrayUnion(['swimming']),
+  ///     'skills': InAppFieldValue.arrayRemove(['coding', 'gaming']),
+  ///     'timestamp': InAppFieldValue.serverTimestamp(),
+  ///     'extra': InAppFieldValue.delete(),
+  ///   });
   /// ```
   Future<InAppDocumentSnapshot?> update(InAppDocument data) {
-    return get().then((value) {
-      final current = value?.data ?? {};
-      current.addAll(data);
-      current[idField] = documentId;
-      return db
-          .write(
+    return get().then((base) {
+      final current = _InAppMerger(base?.data).merge(data);
+      current[_idField] = id;
+      return _db
+          ._w(
             reference: reference,
-            collectionPath: collectionPath,
-            collectionId: collectionId,
-            documentId: documentId,
+            collectionPath: _p.path,
+            collectionId: _p.id,
+            documentId: id,
             type: InAppWriteType.document,
             value: current,
           )
           .then(_n)
-          .then((_) => _ ? InAppDocumentSnapshot(id, current) : null);
+          .then((_) => _ ? InAppDocumentSnapshot(_id, current) : null);
     });
   }
 
@@ -115,12 +118,12 @@ class InAppDocumentReference extends InAppReference {
   /// documentRef.delete();
   /// ```
   Future<bool> delete() {
-    return db
-        .write(
+    return _db
+        ._w(
           reference: reference,
-          collectionPath: collectionPath,
-          collectionId: collectionId,
-          documentId: documentId,
+          collectionPath: _p.path,
+          collectionId: _p.id,
+          documentId: id,
           type: InAppWriteType.document,
         )
         .then(_n);
@@ -133,12 +136,12 @@ class InAppDocumentReference extends InAppReference {
   /// Data documentData = documentRef.get();
   /// ```
   Future<InAppDocumentSnapshot?> get() {
-    return db
-        .read(
+    return _db
+        ._r(
           reference: reference,
-          collectionPath: collectionPath,
-          collectionId: collectionId,
-          documentId: documentId,
+          collectionPath: _p.path,
+          collectionId: _p.id,
+          documentId: id,
           type: InAppReadType.document,
         )
         .then((_) => _ is InAppDocumentSnapshot ? _ : null);
@@ -146,9 +149,9 @@ class InAppDocumentReference extends InAppReference {
 
   Stream<InAppDocumentSnapshot> snapshots() {
     final c = StreamController<InAppDocumentSnapshot>();
-    final n = db.addChildListener(collectionPath, documentId);
-    n.addListener(() => c.add(n.value ?? InAppDocumentSnapshot(documentId)));
-    Future.delayed(const Duration(seconds: 1)).whenComplete(notify);
+    final n = _db._addChildNotifier(_p.path, id);
+    n.addListener(() => c.add(n.value ?? InAppDocumentSnapshot(id)));
+    Future.delayed(const Duration(seconds: 1)).whenComplete(_notify);
     return c.stream;
   }
 }

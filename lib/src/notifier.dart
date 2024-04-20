@@ -1,24 +1,24 @@
 part of 'database.dart';
 
-class InAppNotifier<T> extends ValueNotifier<T> {
-  InAppNotifier(super.data);
+class _InAppNotifier<T> extends ValueNotifier<T> {
+  _InAppNotifier(super.data);
 
   void notify() => notifyListeners();
 }
 
-class InAppQueryNotifier extends InAppNotifier<InAppQuerySnapshot?> {
-  final Map<String, InAppDocumentNotifier> children = {};
+class _InAppQueryNotifier extends _InAppNotifier<InAppQuerySnapshot?> {
+  final Map<String, _InAppDocumentNotifier> children = {};
 
-  InAppQueryNotifier(super.data);
+  _InAppQueryNotifier(super.data);
 
-  InAppDocumentNotifier set(
+  _InAppDocumentNotifier set(
     String id, [
     InAppDocumentSnapshot? value,
   ]) {
     final i = children[id];
-    if (i == null) children[id] = InAppDocumentNotifier(value);
+    if (i == null) children[id] = _InAppDocumentNotifier(value);
     final x = i ?? children[id];
-    return x is InAppDocumentNotifier ? x : InAppDocumentNotifier(null);
+    return x is _InAppDocumentNotifier ? x : _InAppDocumentNotifier(null);
   }
 
   @override
@@ -40,8 +40,8 @@ class InAppQueryNotifier extends InAppNotifier<InAppQuerySnapshot?> {
   }
 }
 
-class InAppDocumentNotifier extends InAppNotifier<InAppDocumentSnapshot?> {
-  InAppDocumentNotifier(super.data);
+class _InAppDocumentNotifier extends _InAppNotifier<InAppDocumentSnapshot?> {
+  _InAppDocumentNotifier(super.data);
 
   @override
   set value(InAppDocumentSnapshot? value) {
