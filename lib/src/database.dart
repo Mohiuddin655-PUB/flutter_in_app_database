@@ -38,11 +38,11 @@ class InAppDatabase {
 
   static InAppDatabase get instance => i;
 
-  static Future<InAppDatabase> init({
+  static InAppDatabase init({
     String? name,
     required InAppDatabaseReader reader,
     required InAppDatabaseWriter writer,
-  }) async {
+  }) {
     _i ??= InAppDatabase._(
       name: name ?? "__in_app_database__",
       reader: reader,
@@ -51,7 +51,7 @@ class InAppDatabase {
     return _i!;
   }
 
-  InAppQueryReference ref(String field) {
+  InAppQueryReference collection(String field) {
     return InAppQueryReference(
       db: this,
       reference: "$name$field",
@@ -59,8 +59,6 @@ class InAppDatabase {
       id: field,
     );
   }
-
-  InAppQueryReference collection(String field) => ref(field);
 
   _InAppQueryNotifier _addNotifier(
     String reference, [
