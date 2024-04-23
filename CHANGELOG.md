@@ -1,3 +1,7 @@
+## 1.2.4
+
+* Document snapshot update
+
 ## 1.2.3
 
 * Initialization easier

@@ -9,7 +9,7 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final db = await SharedPreferences.getInstance();
   // Map<String, dynamic> db = {};
-  await InAppDatabase.init(
+  InAppDatabase.init(
     reader: (String key) async {
       return db.getString(key);
       // return db[key];
@@ -205,13 +205,11 @@ class _HomeState extends State<Home> {
             text: "Get",
             onClick: () {
               InAppDatabase.i.collection("users").doc("1").get().then((value) {
-                if (value != null) {
-                  DataBottomSheet.show(
-                    context,
-                    title: "Get",
-                    contents: [value],
-                  );
-                }
+                DataBottomSheet.show(
+                  context,
+                  title: "Get",
+                  contents: [value],
+                );
               });
             },
           ),

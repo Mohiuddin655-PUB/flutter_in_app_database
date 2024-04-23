@@ -95,7 +95,7 @@ class InAppDocumentReference extends InAppReference {
   /// ```
   Future<InAppDocumentSnapshot?> update(InAppDocument data) {
     return get().then((base) {
-      final current = _InAppMerger(base?.data).merge(data);
+      final current = _InAppMerger(base.data).merge(data);
       current[_idField] = id;
       return _db
           ._w(
@@ -153,16 +153,18 @@ class InAppDocumentReference extends InAppReference {
   /// ```dart
   /// Data documentData = documentRef.get();
   /// ```
-  Future<InAppDocumentSnapshot?> get() {
+  Future<InAppDocumentSnapshot> get() {
     return _db
         ._r(
-          reference: reference,
-          collectionPath: _p.path,
-          collectionId: _p.id,
-          documentId: id,
-          type: InAppReadType.document,
-        )
-        .then((_) => _ is InAppDocumentSnapshot ? _ : null);
+      reference: reference,
+      collectionPath: _p.path,
+      collectionId: _p.id,
+      documentId: id,
+      type: InAppReadType.document,
+    )
+        .then((_) {
+      return _ is InAppDocumentSnapshot ? _ : InAppDocumentSnapshot(id);
+    });
   }
 
   Stream<InAppDocumentSnapshot> snapshots() {

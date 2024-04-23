@@ -6,7 +6,7 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final db = await SharedPreferences.getInstance();
   // Map<String, dynamic> db = {};
-  await InAppDatabase.init(
+  InAppDatabase.init(
     reader: (String key) async {
       return db.getString(key);
       // final x = db[key];
