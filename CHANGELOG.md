@@ -1,3 +1,7 @@
+## 1.2.5
+
+* Query options [arrayNotContains, arrayNotContainsAny] supports
+
 ## 1.2.4
 
 * Document snapshot update
