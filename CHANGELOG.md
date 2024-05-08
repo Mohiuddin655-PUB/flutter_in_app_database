@@ -1,3 +1,8 @@
+## 1.2.6
+
+* Collection set supports
+* Collection write limitation support
+
 ## 1.2.5
 
 * Query options [arrayNotContains, arrayNotContainsAny] supports

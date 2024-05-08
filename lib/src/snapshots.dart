@@ -11,6 +11,16 @@ class InAppQuerySnapshot extends InAppSnapshot {
 
   bool get exists => docs.isNotEmpty;
 
+  InAppDocument get rootDocs {
+    final x = docs.map((e) => MapEntry(e.id, e.data));
+    return Map.fromEntries(x);
+  }
+
+  InAppDocument get rootDocChanges {
+    final x = docChanges.map((e) => MapEntry(e.doc.id, e.doc.data));
+    return Map.fromEntries(x);
+  }
+
   const InAppQuerySnapshot(
     this.id, [
     this.docs = const [],
@@ -88,14 +98,14 @@ class InAppErrorSnapshot extends InAppSnapshot {
 
   @override
   String toString() {
-    return "InAppUnknownSnapshot(error: $message)";
+    return "InAppErrorSnapshot(error: $message)";
   }
 }
 
-class InAppUnknownSnapshot extends InAppSnapshot {
+class InAppFailureSnapshot extends InAppSnapshot {
   final String error;
 
-  const InAppUnknownSnapshot(this.error);
+  const InAppFailureSnapshot(this.error);
 
   @override
   String toString() {

@@ -5,11 +5,20 @@ import 'package:in_app_database/in_app_database.dart';
 import 'package:in_app_faker/in_app_faker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+final _kLimitations = {
+  "users": const InAppWriteLimitation(5),
+  "posts": const InAppWriteLimitation(10),
+  "users/user_id/posts": const InAppWriteLimitation(10),
+};
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final db = await SharedPreferences.getInstance();
   // Map<String, dynamic> db = {};
   InAppDatabase.init(
+    limiter: (key) async {
+      return _kLimitations[key]; // OPTIONAL
+    },
     reader: (String key) async {
       return db.getString(key);
       // return db[key];

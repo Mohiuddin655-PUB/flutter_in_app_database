@@ -21,14 +21,17 @@ class InAppDatabase {
   final String name;
   final InAppDatabaseReader _reader;
   final InAppDatabaseWriter _writer;
+  final InAppDatabaseLimit? _limit;
   final Map<String, _InAppNotifier> _notifiers = {};
 
   InAppDatabase._({
     required this.name,
     required InAppDatabaseReader reader,
     required InAppDatabaseWriter writer,
+    InAppDatabaseLimit? limit,
   })  : _reader = reader,
-        _writer = writer;
+        _writer = writer,
+        _limit = limit;
 
   static InAppDatabase? _i;
 
@@ -42,11 +45,13 @@ class InAppDatabase {
     String? name,
     required InAppDatabaseReader reader,
     required InAppDatabaseWriter writer,
+    InAppDatabaseLimit? limiter,
   }) {
     _i ??= InAppDatabase._(
       name: name ?? "__in_app_database__",
       reader: reader,
       writer: writer,
+      limit: limiter,
     );
     return _i!;
   }
@@ -112,7 +117,7 @@ class InAppDatabase {
           return const InAppErrorSnapshot("Type isn't valid!");
         }
       } else {
-        return const InAppUnknownSnapshot("Data not found!");
+        return const InAppFailureSnapshot("Data not found!");
       }
     });
   }
@@ -125,10 +130,10 @@ class InAppDatabase {
     required String documentId,
     InAppDocument? value,
   }) {
-    if (type.isDocument) {
-      return _reader(collectionPath).then((root) {
-        final raw = root is String ? jsonDecode(root) : root;
-        final base = raw is Map ? raw : {};
+    return _reader(collectionPath).then((root) {
+      final raw = root is String ? jsonDecode(root) : root;
+      final base = raw is Map ? raw : {};
+      if (type.isDocument) {
         final data = value == null ? null : jsonEncode(value);
         final id = documentId;
         if (data != null) {
@@ -136,12 +141,49 @@ class InAppDatabase {
         } else {
           base.remove(id);
         }
-        final body = jsonEncode(base);
-        return _writer(collectionPath, body);
+      } else if (type.isCollection) {
+        if (value != null) {
+          for (var i in value.entries) {
+            final id = i.key;
+            final value = i.value;
+            final data = value == null ? null : jsonEncode(value);
+            if (data != null) {
+              base[id] = data;
+            } else {
+              base.remove(id);
+            }
+          }
+        }
+      }
+      return _wb(collectionPath, base).then((_) {
+        return _writer(collectionPath, _);
       });
-    } else {
-      final body = value is Map ? jsonEncode(value) : null;
-      return _writer(collectionPath, body);
+    });
+  }
+
+  Future<String?> _wb(String path, Map base) async {
+    String? body;
+    if (base.isNotEmpty) {
+      if (_limit != null) {
+        final limitation = (await _limit!(path));
+        if (limitation != null && limitation.limit > 0) {
+          final limit = limitation.limit;
+          final entries = base.entries;
+          if (entries.length > limit) {
+            final x = limitation.limitByRecent
+                ? List.of(entries).reversed.take(limit)
+                : entries.take(limit);
+            body = jsonEncode(Map.fromEntries(x));
+          } else {
+            body = jsonEncode(base);
+          }
+        } else {
+          body = jsonEncode(base);
+        }
+      } else {
+        body = jsonEncode(base);
+      }
     }
+    return body;
   }
 }

@@ -2,11 +2,20 @@
 
 ## INITIALIZATIONS:
 ```dart
+final _kLimitations = {
+  "users": const InAppWriteLimitation(5),
+  "posts": const InAppWriteLimitation(10),
+  "users/user_id/posts": const InAppWriteLimitation(10),
+};
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final db = await SharedPreferences.getInstance();
   // Map<String, dynamic> db = {};
   InAppDatabase.init(
+    limiter: (key) async {
+      return _kLimitations[key]; // OPTIONAL
+    },
     reader: (String key) async {
       return db.getString(key);
       // final x = db[key];
@@ -129,7 +138,7 @@ Stream<InAppQuerySnapshot> getCollectionSnapshots() {
 ```
 ### Get specific documents by simple query
 ```dart
-Future<InAppQuerySnapshot> getSpecificDocumentsByQuerySnapshots() {
+Stream<InAppQuerySnapshot> getSpecificDocumentsByQuerySnapshots() {
   return InAppDatabase.i
       .collection("users")
       .where("username", isEqualTo: "emma_smith")

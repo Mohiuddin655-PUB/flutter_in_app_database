@@ -47,6 +47,24 @@ abstract class InAppCollectionReference extends InAppReference {
     return doc(id).set(data).then(_n);
   }
 
+  Future<InAppQuerySnapshot?> set(
+    List<InAppDocumentSnapshot> data, {
+    bool notifiable = false,
+  }) {
+    final query = InAppQuerySnapshot(id, data);
+    return _db
+        ._w(
+          reference: reference,
+          collectionPath: path,
+          collectionId: id,
+          documentId: id,
+          type: InAppWriteType.collection,
+          value: query.rootDocs,
+        )
+        .then((_) => notifiable ? _n(_) : _)
+        .then((_) => _ ? query : null);
+  }
+
   Future<InAppQuerySnapshot> get() {
     return _db
         ._r(
