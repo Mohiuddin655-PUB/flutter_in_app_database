@@ -153,6 +153,8 @@ class InAppDatabase {
               base.remove(id);
             }
           }
+        } else {
+          base.clear();
         }
       }
       return _wb(collectionPath, base).then((_) {

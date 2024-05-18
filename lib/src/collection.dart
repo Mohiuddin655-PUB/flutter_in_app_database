@@ -65,6 +65,20 @@ abstract class InAppCollectionReference extends InAppReference {
         .then((_) => _ ? query : null);
   }
 
+  Future<bool> delete({
+    bool notifiable = false,
+  }) {
+    return _db
+        ._w(
+          reference: reference,
+          collectionPath: path,
+          collectionId: id,
+          documentId: id,
+          type: InAppWriteType.collection,
+        )
+        .then((_) => notifiable ? _n(_) : _);
+  }
+
   Future<InAppQuerySnapshot> get() {
     return _db
         ._r(

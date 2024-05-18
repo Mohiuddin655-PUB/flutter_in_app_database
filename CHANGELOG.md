@@ -1,3 +1,7 @@
+## 1.2.7
+
+* Collection delete support
+
 ## 1.2.6
 
 * Collection set supports
