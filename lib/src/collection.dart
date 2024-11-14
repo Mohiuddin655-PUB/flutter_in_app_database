@@ -11,9 +11,9 @@ abstract class InAppCollectionReference extends InAppReference {
     required this.id,
   });
 
-  _InAppQueryNotifier? get _notifier {
+  InAppQueryNotifier? get _notifier {
     final x = _db._notifiers[path];
-    return x is _InAppQueryNotifier ? x : null;
+    return x is InAppQueryNotifier ? x : null;
   }
 
   T _n<T>(T value, [InAppQuerySnapshot? snapshot]) {
@@ -92,10 +92,12 @@ abstract class InAppCollectionReference extends InAppReference {
   }
 
   Stream<InAppQuerySnapshot> snapshots() {
-    final c = StreamController<InAppQuerySnapshot>();
     final n = _db._addNotifier(path);
-    n.addListener(() => c.add(n.value ?? InAppQuerySnapshot(id)));
     Future.delayed(const Duration(seconds: 1)).whenComplete(_notify);
-    return c.stream;
+    return Stream.multi((c) {
+      void update() => c.add(n.value ?? InAppQuerySnapshot(id));
+      n.addListener(update);
+      c.onCancel = () => n.removeListener(update);
+    });
   }
 }

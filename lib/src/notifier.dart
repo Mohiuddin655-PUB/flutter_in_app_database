@@ -6,19 +6,19 @@ class _InAppNotifier<T> extends ValueNotifier<T> {
   void notify() => notifyListeners();
 }
 
-class _InAppQueryNotifier extends _InAppNotifier<InAppQuerySnapshot?> {
-  final Map<String, _InAppDocumentNotifier> children = {};
+class InAppQueryNotifier extends _InAppNotifier<InAppQuerySnapshot?> {
+  final Map<String, InAppDocumentNotifier> children = {};
 
-  _InAppQueryNotifier(super.data);
+  InAppQueryNotifier(super.data);
 
-  _InAppDocumentNotifier set(
+  InAppDocumentNotifier set(
     String id, [
     InAppDocumentSnapshot? value,
   ]) {
     final i = children[id];
-    if (i == null) children[id] = _InAppDocumentNotifier(value, id);
+    if (i == null) children[id] = InAppDocumentNotifier(value, id);
     final x = i ?? children[id];
-    return x is _InAppDocumentNotifier ? x : _InAppDocumentNotifier(null, id);
+    return x is InAppDocumentNotifier ? x : InAppDocumentNotifier(null, id);
   }
 
   @override
@@ -38,12 +38,15 @@ class _InAppQueryNotifier extends _InAppNotifier<InAppQuerySnapshot?> {
       super.value = null;
     }
   }
+
+  @override
+  String toString() => "$InAppQueryNotifier(${value?.id})";
 }
 
-class _InAppDocumentNotifier extends _InAppNotifier<InAppDocumentSnapshot?> {
+class InAppDocumentNotifier extends _InAppNotifier<InAppDocumentSnapshot?> {
   final String id;
 
-  _InAppDocumentNotifier(super.data, this.id);
+  InAppDocumentNotifier(super.data, this.id);
 
   @override
   set value(InAppDocumentSnapshot? value) {
@@ -61,7 +64,5 @@ class _InAppDocumentNotifier extends _InAppNotifier<InAppDocumentSnapshot?> {
   }
 
   @override
-  String toString() {
-    return "DocumentNotifier($id)";
-  }
+  String toString() => "$InAppDocumentNotifier($id)";
 }

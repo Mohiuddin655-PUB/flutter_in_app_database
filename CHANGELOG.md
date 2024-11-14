@@ -1,3 +1,7 @@
+## 1.2.8
+
+* Update snapshots as single stream
+
 ## 1.2.7
 
 * Collection delete support

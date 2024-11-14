@@ -65,17 +65,17 @@ class InAppDatabase {
     );
   }
 
-  _InAppQueryNotifier _addNotifier(
+  InAppQueryNotifier _addNotifier(
     String reference, [
     InAppQuerySnapshot? value,
   ]) {
     final i = _notifiers[reference];
-    if (i == null) _notifiers[reference] = _InAppQueryNotifier(value);
+    if (i == null) _notifiers[reference] = InAppQueryNotifier(value);
     final x = i ?? _notifiers[reference];
-    return x is _InAppQueryNotifier ? x : _InAppQueryNotifier(value);
+    return x is InAppQueryNotifier ? x : InAppQueryNotifier(value);
   }
 
-  _InAppDocumentNotifier _addChildNotifier(
+  InAppDocumentNotifier _addChildNotifier(
     String reference,
     String id, [
     InAppDocumentSnapshot? value,

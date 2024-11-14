@@ -90,7 +90,7 @@ class _HomeState extends State<Home> {
                   stream:
                       InAppDatabase.i.collection("users").count().snapshots(),
                   builder: (context, s) {
-                    final count = s.data?.docs ?? 0;
+                    final count = s.data?.count ?? 0;
                     return Text("Total users: $count");
                   },
                 ),

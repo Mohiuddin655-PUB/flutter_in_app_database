@@ -13,12 +13,12 @@ class InAppDocumentReference extends InAppReference {
 
   String get path => "${_p.path}/$id";
 
-  _InAppQueryNotifier? get _cn {
+  InAppQueryNotifier? get _cn {
     final x = _db._notifiers[_p.path];
-    return x is _InAppQueryNotifier ? x : null;
+    return x is InAppQueryNotifier ? x : null;
   }
 
-  _InAppDocumentNotifier? get _dn => _cn?.children[id];
+  InAppDocumentNotifier? get _dn => _cn?.children[id];
 
   T _n<T>(T value, [InAppDocumentSnapshot? snapshot]) {
     if (_cn != null) _p._notify();
@@ -168,10 +168,12 @@ class InAppDocumentReference extends InAppReference {
   }
 
   Stream<InAppDocumentSnapshot> snapshots() {
-    final c = StreamController<InAppDocumentSnapshot>();
     final n = _db._addChildNotifier(_p.path, id);
-    n.addListener(() => c.add(n.value ?? InAppDocumentSnapshot(id)));
     Future.delayed(const Duration(seconds: 1)).whenComplete(_notify);
-    return c.stream;
+    return Stream.multi((c) {
+      void update() => c.add(n.value ?? InAppDocumentSnapshot(id));
+      n.addListener(update);
+      c.onCancel = () => n.removeListener(update);
+    });
   }
 }

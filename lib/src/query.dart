@@ -268,10 +268,12 @@ class InAppQueryReference extends InAppCollectionReference {
 
   @override
   Stream<InAppQuerySnapshot> snapshots() {
-    final c = StreamController<InAppQuerySnapshot>();
     final n = _db._addNotifier(path);
-    n.addListener(() => get().then(c.add));
     Future.delayed(const Duration(seconds: 1)).whenComplete(_notify);
-    return c.stream;
+    return Stream.multi((c) {
+      void update() => get().then(c.add);
+      n.addListener(update);
+      c.onCancel = () => n.removeListener(update);
+    });
   }
 }

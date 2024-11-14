@@ -28,27 +28,49 @@ class InAppQuerySnapshot extends InAppSnapshot {
   ]);
 
   @override
+  int get hashCode => id.hashCode ^ docs.hashCode ^ docChanges.hashCode;
+
+  @override
+  bool operator ==(Object other) {
+    return other is InAppQuerySnapshot &&
+        other.id == id &&
+        other.docs == docs &&
+        other.docChanges == docChanges;
+  }
+
+  @override
   String toString() {
-    return "InAppQuerySnapshot(id: $id, docs: $docs, docChanges: $docChanges)";
+    return "$InAppQuerySnapshot(id: $id, docs: $docs, docChanges: $docChanges)";
   }
 }
 
 class InAppCounterSnapshot extends InAppSnapshot {
   final String id;
-  final int docs;
-  final int docChanges;
+  final int count;
+  final InAppQuerySnapshot query;
 
-  bool get exists => docs > 0;
+  bool get exists => query.exists;
 
   const InAppCounterSnapshot(
-    this.id, [
-    this.docs = 0,
-    this.docChanges = 0,
+    this.id,
+    this.query, [
+    this.count = 0,
   ]);
 
   @override
+  int get hashCode => id.hashCode ^ count.hashCode ^ query.hashCode;
+
+  @override
+  bool operator ==(Object other) {
+    return other is InAppCounterSnapshot &&
+        other.id == id &&
+        other.count == count &&
+        other.query == query;
+  }
+
+  @override
   String toString() {
-    return "InAppCounterSnapshot(id: $id, docs: $docs, docChanges: $docChanges)";
+    return "$InAppCounterSnapshot(id: $id, count: $count, query: $query)";
   }
 }
 
@@ -60,9 +82,15 @@ class InAppDocumentChangeSnapshot extends InAppSnapshot {
   });
 
   @override
-  String toString() {
-    return "InAppDocumentChange(doc: $doc)";
+  int get hashCode => doc.hashCode;
+
+  @override
+  bool operator ==(Object other) {
+    return other is InAppDocumentChangeSnapshot && other.doc == doc;
   }
+
+  @override
+  String toString() => "$InAppDocumentChangeSnapshot(doc: $doc)";
 }
 
 class InAppDocumentSnapshot extends InAppSnapshot {
@@ -86,29 +114,39 @@ class InAppDocumentSnapshot extends InAppSnapshot {
   }
 
   @override
-  String toString() {
-    return "InAppDocumentSnapshot(id: $id, doc: $_doc)";
-  }
-}
-
-class InAppErrorSnapshot extends InAppSnapshot {
-  final String message;
-
-  const InAppErrorSnapshot(this.message);
+  int get hashCode => id.hashCode ^ _doc.hashCode;
 
   @override
-  String toString() {
-    return "InAppErrorSnapshot(error: $message)";
+  bool operator ==(Object other) {
+    return other is InAppDocumentSnapshot &&
+        other.id == id &&
+        other._doc == _doc;
   }
+
+  @override
+  String toString() => "$InAppDocumentSnapshot(id: $id, doc: $_doc)";
 }
 
 class InAppFailureSnapshot extends InAppSnapshot {
-  final String error;
+  final String message;
 
-  const InAppFailureSnapshot(this.error);
+  const InAppFailureSnapshot(this.message);
 
   @override
-  String toString() {
-    return "InAppFailureSnapshot(error: $error)";
+  int get hashCode => message.hashCode;
+
+  @override
+  bool operator ==(Object other) {
+    return other is InAppFailureSnapshot && other.message == message;
   }
+
+  @override
+  String toString() => "$InAppFailureSnapshot(message: $message)";
+}
+
+class InAppErrorSnapshot extends InAppFailureSnapshot {
+  const InAppErrorSnapshot(super.message);
+
+  @override
+  String toString() => "$InAppErrorSnapshot(message: $message)";
 }
