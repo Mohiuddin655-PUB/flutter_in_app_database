@@ -31,7 +31,7 @@ class InAppDatabase {
 
   set version(String code) => _version = InAppDatabaseVersion.custom(code);
 
-  Future<Iterable<String>> get paths => _delegate.paths(name);
+  Future<Iterable<String>> get keys => _delegate.paths(name);
 
   InAppDatabase._({
     required this.name,
@@ -130,7 +130,7 @@ class InAppDatabase {
     final ref = _version.collectionRef(name, collectionPath);
     try {
       if (!related) return _delegate.drop(ref);
-      final paths = await this.paths;
+      final paths = await keys;
       if (filter != null) {
         final keys = filter(ref, paths);
         for (var i in keys) {
@@ -146,6 +146,17 @@ class InAppDatabase {
       return true;
     } catch (msg) {
       return false;
+    }
+  }
+
+  Future<Iterable<String>> _k(String path) async {
+    try {
+      final paths = await keys;
+      final ref = _version.collectionRef(name, path);
+      final children = paths.where((key) => key.startsWith(ref)).toList();
+      return children;
+    } catch (_) {
+      return [];
     }
   }
 

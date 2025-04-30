@@ -11,6 +11,8 @@ abstract class InAppCollectionReference extends InAppReference {
     required this.id,
   });
 
+  Future<Iterable<String>> get keys => _db._k(path);
+
   InAppQueryNotifier? get _notifier {
     final x = _db._notifiers[path];
     return x is InAppQueryNotifier ? x : null;
