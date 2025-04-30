@@ -19,7 +19,7 @@ abstract class InAppCollectionReference extends InAppReference {
   T _n<T>(T value, [InAppQuerySnapshot? snapshot]) {
     if (_notifier != null) {
       if (snapshot == null) {
-        get().then((_) => _notifier!.value = _);
+        get().then((value) => _notifier!.value = value);
       } else {
         _notifier!.value = snapshot;
       }
@@ -41,7 +41,7 @@ abstract class InAppCollectionReference extends InAppReference {
   }
 
   Future<InAppDocumentSnapshot?> add(InAppDocument data) {
-    final i = data[_idField];
+    final i = data[_idField] ?? data[_idFieldSecondary];
     final id = i is String ? i : _id;
     data[_idField] = id;
     return doc(id).set(data).then(_n);
@@ -61,8 +61,8 @@ abstract class InAppCollectionReference extends InAppReference {
           type: InAppWriteType.collection,
           value: query.rootDocs,
         )
-        .then((_) => notifiable ? _n(_) : _)
-        .then((_) => _ ? query : null);
+        .then((value) => notifiable ? _n(value) : value)
+        .then((value) => value ? query : null);
   }
 
   Future<bool> delete({
@@ -76,7 +76,14 @@ abstract class InAppCollectionReference extends InAppReference {
           documentId: id,
           type: InAppWriteType.collection,
         )
-        .then((_) => notifiable ? _n(_) : _);
+        .then((value) => notifiable ? _n(value) : value);
+  }
+
+  Future<bool> drop({
+    bool related = true,
+    Iterable<String> Function(String path, Iterable<String>)? filter,
+  }) {
+    return _db.drop(id, related: related, filter: filter);
   }
 
   Future<InAppQuerySnapshot> get() {
@@ -88,7 +95,7 @@ abstract class InAppCollectionReference extends InAppReference {
           documentId: id,
           type: InAppReadType.collection,
         )
-        .then((_) => _ is InAppQuerySnapshot ? _ : InAppQuerySnapshot(_id));
+        .then((v) => v is InAppQuerySnapshot ? v : InAppQuerySnapshot(_id));
   }
 
   Stream<InAppQuerySnapshot> snapshots() {

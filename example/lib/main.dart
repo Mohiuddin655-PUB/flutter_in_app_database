@@ -3,37 +3,65 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:in_app_database/in_app_database.dart';
 import 'package:in_app_faker/in_app_faker.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
-final _kLimitations = {
-  "users": const InAppWriteLimitation(5),
-  "posts": const InAppWriteLimitation(10),
-  "users/user_id/posts": const InAppWriteLimitation(10),
-};
+// late SharedPreferences db;
+late Map<String, dynamic> db;
+
+class DatabaseDelegate extends InAppDatabaseDelegate {
+  @override
+  Future<void> createDatabase(String name) async {
+    // db = await SharedPreferences.getInstance();
+    db = {};
+  }
+
+  @override
+  Future<Iterable<String>> paths(String dbName) async {
+    // return db.getKeys().where((e) => e.startsWith(dbName)).toList();
+    return db.keys;
+  }
+
+  @override
+  Future<bool> drop(Iterable<String> paths) async {
+    await Future.wait(paths.map((e) => db.remove(e)));
+    return true;
+  }
+
+  @override
+  Future<Object?> read(String key) async {
+    // return db.getString(key);
+    return db[key];
+  }
+
+  @override
+  Future<bool> write(String key, String? value) async {
+    if (value != null) {
+      // return db.setString(key, value);
+      db[key] = value;
+      return true;
+    } else {
+      // return db.remove(key);
+      db.remove(key);
+      return true;
+    }
+  }
+
+  @override
+  Future<InAppWriteLimitation?> limitation(String key) async {
+    return {
+      "users": const InAppWriteLimitation(5),
+      "posts": const InAppWriteLimitation(10),
+      "users/{user_id}/posts": const InAppWriteLimitation(10),
+    }[key]; // OPTIONAL
+  }
+}
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  final db = await SharedPreferences.getInstance();
-  // Map<String, dynamic> db = {};
   InAppDatabase.init(
-    limiter: (key) async {
-      return _kLimitations[key]; // OPTIONAL
-    },
-    reader: (String key) async {
-      return db.getString(key);
-      // return db[key];
-    },
-    writer: (String key, String? value) async {
-      if (value != null) {
-        return db.setString(key, value);
-        // db[key] = value;
-        // return true;
-      } else {
-        return db.remove(key);
-        // db.remove(key);
-        // return true;
-      }
-    },
+    name: "MyDatabase", // optional
+    showLogs: true, // optional
+    version: InAppDatabaseVersion.v1, // optional
+    delegate: DatabaseDelegate(), // required
   );
   runApp(const MyApp());
 }
@@ -203,6 +231,14 @@ class _HomeState extends State<Home> {
                 "updateAt": DateTime.now().millisecondsSinceEpoch.toString(),
               });
             },
+          ),
+          Button(
+            text: "Drop",
+            onClick: () => InAppDatabase.i.drop(
+              "users",
+              // drop all related paths like: users/, users/posts/, users/../..
+              related: true,
+            ),
           ),
           Button(
             text: "Delete",

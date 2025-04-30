@@ -1,11 +1,13 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:developer';
 
 import 'package:flutter/foundation.dart';
 import 'package:in_app_query/in_app_query.dart';
 
 import '../core/field_value.dart';
 import '../core/paging_options.dart';
+import 'delegate.dart';
 
 part 'base.dart';
 part 'collection.dart';
@@ -16,50 +18,75 @@ part 'notifier.dart';
 part 'query.dart';
 part 'reference.dart';
 part 'snapshots.dart';
+part 'version.dart';
 
 class InAppDatabase {
   final String name;
-  final InAppDatabaseReader _reader;
-  final InAppDatabaseWriter _writer;
-  final InAppDatabaseLimit? _limit;
+  final bool showLogs;
+  final InAppDatabaseDelegate _delegate;
   final Map<String, _InAppNotifier> _notifiers = {};
+  InAppDatabaseVersion _version;
+
+  String get version => _version.code;
+
+  set version(String code) => _version = InAppDatabaseVersion.custom(code);
+
+  Future<Iterable<String>> get paths => _delegate.paths(name);
 
   InAppDatabase._({
     required this.name,
-    required InAppDatabaseReader reader,
-    required InAppDatabaseWriter writer,
-    InAppDatabaseLimit? limit,
-  })  : _reader = reader,
-        _writer = writer,
-        _limit = limit;
+    this.showLogs = false,
+    InAppDatabaseVersion? version,
+    required InAppDatabaseDelegate delegate,
+  })  : _version = version ?? InAppDatabaseVersion.v1,
+        _delegate = delegate;
+
+  void _log(msg, {String field = '', String action = ''}) {
+    if (!showLogs) return;
+    msg = msg.toString();
+    if (field.isNotEmpty) {
+      msg = "${action.isEmpty ? field : '$action($field)'} :$msg";
+    } else if (action.isNotEmpty) {
+      msg = "$action: $msg";
+    }
+    log(msg, name: "IN_APP_DATABASE");
+  }
+
+  T execute<T extends Object?>(String action, T Function() callback) {
+    return _version(action, callback);
+  }
 
   static InAppDatabase? _i;
 
-  static InAppDatabase get i => _i!;
+  static InAppDatabase get i {
+    if (_i != null) return _i!;
+    throw "Not initialized yet!";
+  }
 
   static InAppDatabase get I => i;
 
   static InAppDatabase get instance => i;
 
-  static InAppDatabase init({
+  static void init({
     String? name,
-    required InAppDatabaseReader reader,
-    required InAppDatabaseWriter writer,
-    InAppDatabaseLimit? limiter,
+    bool showLogs = false,
+    InAppDatabaseVersion? version,
+    required InAppDatabaseDelegate delegate,
   }) {
     _i ??= InAppDatabase._(
       name: name ?? "__in_app_database__",
-      reader: reader,
-      writer: writer,
-      limit: limiter,
+      showLogs: showLogs,
+      version: version,
+      delegate: delegate,
     );
-    return _i!;
+    i._log("initialized!");
   }
 
   InAppQueryReference collection(String field) {
+    final reference = _version.ref(name, field);
     return InAppQueryReference(
       db: this,
-      reference: "$name$field",
+      reference: reference,
       path: field,
       id: field,
     );
@@ -83,6 +110,34 @@ class InAppDatabase {
     return _addNotifier(reference).set(id, value);
   }
 
+  Future<bool> drop(
+    String field, {
+    bool related = true,
+    Iterable<String> Function(String path, Iterable<String>)? filter,
+  }) async {
+    try {
+      return execute("drop", () async {
+        if (!related) return _delegate.drop([field]);
+        final paths = await this.paths;
+        if (filter != null) {
+          final keys = filter(field, paths);
+          return _delegate.drop(keys);
+        }
+        final x = field.replaceAll(name, '').split("/").firstOrNull ?? '/';
+        final normalizedPath = x.endsWith('/') ? x : '$x/';
+        final keysToDelete = paths.where((key) {
+          return key.startsWith(normalizedPath);
+        }).toList();
+        final feedback = await _delegate.drop(keysToDelete);
+        _log("dropped!", field: field, action: "drop");
+        return feedback;
+      });
+    } catch (msg) {
+      _log(msg, field: field, action: "drop");
+      return false;
+    }
+  }
+
   Future<InAppSnapshot> _r({
     required InAppReadType type,
     required String reference,
@@ -90,7 +145,7 @@ class InAppDatabase {
     required String collectionId,
     required String documentId,
   }) {
-    return _reader(collectionPath).then((raw) {
+    return _delegate.read(collectionPath).then((raw) {
       final value = raw is String ? jsonDecode(raw) : raw;
       if (value is Map) {
         if (type.isCollection) {
@@ -130,7 +185,7 @@ class InAppDatabase {
     required String documentId,
     InAppDocument? value,
   }) {
-    return _reader(collectionPath).then((root) {
+    return _delegate.read(collectionPath).then((root) {
       final raw = root is String ? jsonDecode(root) : root;
       final base = raw is Map ? raw : {};
       if (type.isDocument) {
@@ -157,8 +212,8 @@ class InAppDatabase {
           base.clear();
         }
       }
-      return _wb(collectionPath, base).then((_) {
-        return _writer(collectionPath, _);
+      return _wb(collectionPath, base).then((value) {
+        return _delegate.write(collectionPath, value);
       });
     });
   }
@@ -166,19 +221,15 @@ class InAppDatabase {
   Future<String?> _wb(String path, Map base) async {
     String? body;
     if (base.isNotEmpty) {
-      if (_limit != null) {
-        final limitation = (await _limit!(path));
-        if (limitation != null && limitation.limit > 0) {
-          final limit = limitation.limit;
-          final entries = base.entries;
-          if (entries.length > limit) {
-            final x = limitation.limitByRecent
-                ? List.of(entries).reversed.take(limit)
-                : entries.take(limit);
-            body = jsonEncode(Map.fromEntries(x));
-          } else {
-            body = jsonEncode(base);
-          }
+      final limitation = await _delegate.limitation(path);
+      if (limitation != null && limitation.limit > 0) {
+        final limit = limitation.limit;
+        final entries = base.entries;
+        if (entries.length > limit) {
+          final x = limitation.limitByRecent
+              ? List.of(entries).reversed.take(limit)
+              : entries.take(limit);
+          body = jsonEncode(Map.fromEntries(x));
         } else {
           body = jsonEncode(base);
         }
@@ -187,5 +238,14 @@ class InAppDatabase {
       }
     }
     return body;
+  }
+
+  void dispose() {
+    for (var value in _notifiers.values) {
+      value.dispose();
+    }
+    _notifiers.clear();
+    _i = null;
+    _log("disposed!");
   }
 }

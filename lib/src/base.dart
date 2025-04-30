@@ -2,9 +2,6 @@ part of 'database.dart';
 
 typedef InAppValue = Object?;
 typedef InAppDocument = Map<String, InAppValue>;
-typedef InAppDatabaseReader = Future<Object?> Function(String key);
-typedef InAppDatabaseWriter = Future<bool> Function(String key, String? value);
-typedef InAppDatabaseLimit = Future<InAppWriteLimitation?> Function(String key);
 
 class InAppSetOptions {
   final bool merge;

@@ -1,8 +1,10 @@
 ## 1.2.9
 
+* Add versioning system
 * Add InFieldValue's arrayFilter, arrayUnify, toggle
 * Improve InAppFieldValue's timestamp and renamed from serverTimestamp
 * Implement dart latest version
+* Implement database drop system
 
 ## 1.2.8
 
