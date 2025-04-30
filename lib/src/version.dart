@@ -27,14 +27,29 @@ class InAppDatabaseVersion {
     }
   }
 
-  String ref(String dbName, String collectionName) {
+  String _root(String dbName) {
     switch (code) {
       case 'v1':
-        return "$dbName$collectionName";
+        return dbName;
       case 'v2':
-        return "$dbName/$collectionName";
+        return "$dbName/";
       default:
-        return "$dbName/$code/$collectionName";
+        return "$dbName/$code/";
+    }
+  }
+
+  String ref(String dbName, [String? path]) {
+    final root = _root(dbName);
+    if (path == null || path.isEmpty) return root;
+    return "$root$path";
+  }
+
+  String collectionRef(String dbName, String path) {
+    switch (code) {
+      case "v1":
+        return path;
+      default:
+        return ref(dbName, path);
     }
   }
 

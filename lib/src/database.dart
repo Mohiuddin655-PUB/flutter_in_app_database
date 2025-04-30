@@ -41,6 +41,8 @@ class InAppDatabase {
   })  : _version = version ?? InAppDatabaseVersion.v1,
         _delegate = delegate;
 
+  String get rootPath => _version.ref(name);
+
   void _log(msg, {String field = '', String action = ''}) {
     if (!showLogs) return;
     msg = msg.toString();
@@ -50,10 +52,6 @@ class InAppDatabase {
       msg = "$action: $msg";
     }
     log(msg, name: "IN_APP_DATABASE");
-  }
-
-  T execute<T extends Object?>(String action, T Function() callback) {
-    return _version(action, callback);
   }
 
   static InAppDatabase? _i;
@@ -67,18 +65,19 @@ class InAppDatabase {
 
   static InAppDatabase get instance => i;
 
-  static void init({
+  static Future<void> init({
     String? name,
     bool showLogs = false,
     InAppDatabaseVersion? version,
     required InAppDatabaseDelegate delegate,
-  }) {
+  }) async {
     _i ??= InAppDatabase._(
       name: name ?? "__in_app_database__",
       showLogs: showLogs,
       version: version,
       delegate: delegate,
     );
+    await i._delegate.createDatabase(i.name);
     i._log("initialized!");
   }
 
@@ -89,6 +88,19 @@ class InAppDatabase {
       reference: reference,
       path: field,
       id: field,
+    );
+  }
+
+  Future<bool> drop(
+    String field, {
+    bool related = true,
+    bool notifiable = false,
+    Iterable<String> Function(String path, Iterable<String>)? filter,
+  }) async {
+    return collection(field).drop(
+      related: related,
+      notifiable: notifiable,
+      filter: filter,
     );
   }
 
@@ -110,30 +122,31 @@ class InAppDatabase {
     return _addNotifier(reference).set(id, value);
   }
 
-  Future<bool> drop(
-    String field, {
+  Future<bool> _drop(
+    String collectionPath, {
     bool related = true,
     Iterable<String> Function(String path, Iterable<String>)? filter,
   }) async {
+    final ref = _version.collectionRef(name, collectionPath);
     try {
-      return execute("drop", () async {
-        if (!related) return _delegate.drop([field]);
-        final paths = await this.paths;
-        if (filter != null) {
-          final keys = filter(field, paths);
-          return _delegate.drop(keys);
+      if (!related) return _delegate.drop(ref);
+      final paths = await this.paths;
+      if (filter != null) {
+        final keys = filter(ref, paths);
+        for (var i in keys) {
+          await _delegate.drop(i);
         }
-        final x = field.replaceAll(name, '').split("/").firstOrNull ?? '/';
-        final normalizedPath = x.endsWith('/') ? x : '$x/';
-        final keysToDelete = paths.where((key) {
-          return key.startsWith(normalizedPath);
-        }).toList();
-        final feedback = await _delegate.drop(keysToDelete);
-        _log("dropped!", field: field, action: "drop");
-        return feedback;
-      });
+        return true;
+      }
+      final keysToDelete = paths.where((key) => key.startsWith(ref)).toList();
+      if (keysToDelete.isEmpty) throw "Path not found!";
+      for (var i in keysToDelete) {
+        await _delegate.drop(i);
+      }
+      _log("dropped!", field: ref, action: "drop");
+      return true;
     } catch (msg) {
-      _log(msg, field: field, action: "drop");
+      _log(msg, field: ref, action: "drop");
       return false;
     }
   }
@@ -145,7 +158,8 @@ class InAppDatabase {
     required String collectionId,
     required String documentId,
   }) {
-    return _delegate.read(collectionPath).then((raw) {
+    final ref = _version.collectionRef(name, collectionPath);
+    return _delegate.read(ref).then((raw) {
       final value = raw is String ? jsonDecode(raw) : raw;
       if (value is Map) {
         if (type.isCollection) {
@@ -185,7 +199,8 @@ class InAppDatabase {
     required String documentId,
     InAppDocument? value,
   }) {
-    return _delegate.read(collectionPath).then((root) {
+    final ref = _version.collectionRef(name, collectionPath);
+    return _delegate.read(ref).then((root) {
       final raw = root is String ? jsonDecode(root) : root;
       final base = raw is Map ? raw : {};
       if (type.isDocument) {
@@ -213,7 +228,7 @@ class InAppDatabase {
         }
       }
       return _wb(collectionPath, base).then((value) {
-        return _delegate.write(collectionPath, value);
+        return _delegate.write(ref, value);
       });
     });
   }

@@ -5,7 +5,7 @@ abstract class InAppDatabaseDelegate {
 
   Future<Iterable<String>> paths(String dbName);
 
-  Future<bool> drop(Iterable<String> paths);
+  Future<bool> drop(String key);
 
   Future<Object?> read(String key);
 

@@ -81,9 +81,12 @@ abstract class InAppCollectionReference extends InAppReference {
 
   Future<bool> drop({
     bool related = true,
+    bool notifiable = false,
     Iterable<String> Function(String path, Iterable<String>)? filter,
-  }) {
-    return _db.drop(id, related: related, filter: filter);
+  }) async {
+    return _db
+        ._drop(path, related: related, filter: filter)
+        .then((value) => notifiable ? _n(value) : value);
   }
 
   Future<InAppQuerySnapshot> get() {

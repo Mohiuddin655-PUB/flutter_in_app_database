@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:developer';
 
 import 'package:flutter/material.dart';
 import 'package:in_app_database/in_app_database.dart';
@@ -21,19 +22,21 @@ class DatabaseDelegate extends InAppDatabaseDelegate {
   }
 
   @override
-  Future<bool> drop(Iterable<String> paths) async {
-    await Future.wait(paths.map((e) => db.remove(e)));
+  Future<bool> drop(String key) async {
+    db.remove(key);
     return true;
   }
 
   @override
   Future<Object?> read(String key) async {
+    log("READ: $key");
     // return db.getString(key);
     return db[key];
   }
 
   @override
   Future<bool> write(String key, String? value) async {
+    log("WRITE: $key");
     if (value != null) {
       // return db.setString(key, value);
       db[key] = value;
@@ -47,6 +50,7 @@ class DatabaseDelegate extends InAppDatabaseDelegate {
 
   @override
   Future<InAppWriteLimitation?> limitation(String key) async {
+    log("LIMITATION: $key");
     return {
       "users": const InAppWriteLimitation(5),
       "posts": const InAppWriteLimitation(10),
@@ -236,8 +240,7 @@ class _HomeState extends State<Home> {
             text: "Drop",
             onClick: () => InAppDatabase.i.drop(
               "users",
-              // drop all related paths like: users/, users/posts/, users/../..
-              related: true,
+              notifiable: true,
             ),
           ),
           Button(
