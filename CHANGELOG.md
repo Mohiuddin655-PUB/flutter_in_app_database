@@ -1,3 +1,8 @@
+## 1.3.0
+
+* Add multi-database system
+* Add inner collection keys fetching system inside database or collection
+
 ## 1.2.9
 
 * Add versioning system

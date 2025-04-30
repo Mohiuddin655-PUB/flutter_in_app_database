@@ -11,7 +11,19 @@ abstract class InAppCollectionReference extends InAppReference {
     required this.id,
   });
 
-  Future<Iterable<String>> get keys => _db._k(path);
+  Future<List<String>> get keys async {
+    final paths = await _db._k(path);
+    return paths
+        .where((e) => e != reference)
+        .map((e) {
+          final x = e.replaceAll("$reference/", '').split('/').firstOrNull;
+          if (x == null || x.isEmpty) return null;
+          return x;
+        })
+        .toSet()
+        .whereType<String>()
+        .toList();
+  }
 
   InAppQueryNotifier? get _notifier {
     final x = _db._notifiers[path];

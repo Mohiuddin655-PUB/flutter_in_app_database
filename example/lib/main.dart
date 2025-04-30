@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:developer';
 
 import 'package:flutter/material.dart';
 import 'package:in_app_database/in_app_database.dart';
@@ -10,15 +9,16 @@ late Map<String, dynamic> db;
 
 class DatabaseDelegate extends InAppDatabaseDelegate {
   @override
-  Future<void> createDatabase(String name) async {
+  Future<void> init(String name) async {
     // db = await SharedPreferences.getInstance();
     db = {};
   }
 
   @override
   Future<Iterable<String>> paths(String dbName) async {
-    // return db.getKeys().where((e) => e.startsWith(dbName)).toList();
-    return db.keys;
+    // return db.getKeys();
+    final x = db.keys.toList();
+    return x;
   }
 
   @override
@@ -29,6 +29,9 @@ class DatabaseDelegate extends InAppDatabaseDelegate {
 
   @override
   Future<Object?> read(String key) async {
+    final x = db;
+    // final x = db.keys.toList();
+    // log(x.toString());
     // return db.getString(key);
     return db[key];
   }
@@ -59,7 +62,7 @@ class DatabaseDelegate extends InAppDatabaseDelegate {
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   InAppDatabase.init(
-    // name: "MyDatabase", // optional
+    name: "MyDatabase", // optional
     showLogs: true, // optional
     version: InAppDatabaseVersion.v2, // optional
     delegate: DatabaseDelegate(), // required

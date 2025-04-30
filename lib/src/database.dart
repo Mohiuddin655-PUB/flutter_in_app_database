@@ -31,20 +31,27 @@ class InAppDatabase {
 
   set version(String code) => _version = InAppDatabaseVersion.custom(code);
 
-  Future<Iterable<String>> get keys => _delegate.paths(name);
+  String get ref => _version.ref(name);
 
-  InAppDatabase._({
-    required this.name,
-    this.showLogs = false,
-    InAppDatabaseVersion? version,
-    required InAppDatabaseDelegate delegate,
-  })  : _version = version ?? InAppDatabaseVersion.v1,
-        _delegate = delegate;
-
-  String get rootPath => _version.ref(name);
+  Future<List<String>> get keys async {
+    final paths = await _delegate.paths(name);
+    return paths
+        .where((e) {
+          if (version == InAppDatabaseVersion.v1.code) return true;
+          return e.startsWith(ref);
+        })
+        .map((e) {
+          final x = e.replaceAll(ref, '').split('/').firstOrNull;
+          if (x == null || x.isEmpty) return null;
+          return x;
+        })
+        .toSet()
+        .whereType<String>()
+        .toList();
+  }
 
   void _log(msg, {String field = '', String action = ''}) {
-    if (!showLogs) return;
+    if (!showLogs || kReleaseMode) return;
     msg = msg.toString();
     if (field.isNotEmpty) {
       msg = "${action.isEmpty ? field : '$action($field)'}: $msg";
@@ -54,16 +61,55 @@ class InAppDatabase {
     log(msg, name: "IN_APP_DATABASE");
   }
 
+  InAppDatabase._({
+    required this.name,
+    this.showLogs = false,
+    InAppDatabaseVersion? version,
+    required InAppDatabaseDelegate delegate,
+  })  : _version = version ?? InAppDatabaseVersion.v1,
+        _delegate = delegate;
+
   static InAppDatabase? _i;
 
   static InAppDatabase get i {
     if (_i != null) return _i!;
-    throw "Not initialized yet!";
+    throw "$InAppDatabase not initialized yet!";
   }
 
   static InAppDatabase get I => i;
 
   static InAppDatabase get instance => i;
+
+  static final Map<String, InAppDatabase> _proxies = {};
+
+  static InAppDatabase of(String name) {
+    final i = _proxies[name];
+    if (i != null) return i;
+    throw "$InAppDatabase($name) not created yet!";
+  }
+
+  static Future<void> create({
+    required String name,
+    bool showLogs = false,
+    InAppDatabaseVersion? version,
+    required InAppDatabaseDelegate delegate,
+  }) async {
+    _proxies[name] = InAppDatabase._(
+      name: name,
+      showLogs: showLogs,
+      version: version,
+      delegate: delegate,
+    );
+    final i = of(name);
+    await i._delegate.init(i.name);
+    i._log("${i.name} created!");
+  }
+
+  static void close() {
+    for (final db in _proxies.values) {
+      db.dispose();
+    }
+  }
 
   static Future<void> init({
     String? name,
@@ -71,14 +117,14 @@ class InAppDatabase {
     InAppDatabaseVersion? version,
     required InAppDatabaseDelegate delegate,
   }) async {
-    _i ??= InAppDatabase._(
-      name: name ?? "__in_app_database__",
+    _i = InAppDatabase._(
+      name: name ?? '__in_app_database__',
       showLogs: showLogs,
       version: version,
       delegate: delegate,
     );
-    await i._delegate.createDatabase(i.name);
-    i._log("initialized!");
+    await i._delegate.init(i.name);
+    i._log("$InAppDatabase initialized!");
   }
 
   InAppQueryReference collection(String field) {
@@ -127,10 +173,10 @@ class InAppDatabase {
     bool related = true,
     Iterable<String> Function(String path, Iterable<String>)? filter,
   }) async {
-    final ref = _version.collectionRef(name, collectionPath);
+    final ref = _version.ref(name, collectionPath);
     try {
       if (!related) return _delegate.drop(ref);
-      final paths = await keys;
+      final paths = await _delegate.paths(name);
       if (filter != null) {
         final keys = filter(ref, paths);
         for (var i in keys) {
@@ -151,8 +197,8 @@ class InAppDatabase {
 
   Future<Iterable<String>> _k(String path) async {
     try {
-      final paths = await keys;
-      final ref = _version.collectionRef(name, path);
+      final paths = await _delegate.paths(name);
+      final ref = _version.ref(name, path);
       final children = paths.where((key) => key.startsWith(ref)).toList();
       return children;
     } catch (_) {
@@ -167,7 +213,7 @@ class InAppDatabase {
     required String collectionId,
     required String documentId,
   }) {
-    final ref = _version.collectionRef(name, collectionPath);
+    final ref = _version.ref(name, collectionPath);
     return _delegate.read(ref).then((raw) {
       final value = raw is String ? jsonDecode(raw) : raw;
       if (value is Map) {
@@ -208,7 +254,7 @@ class InAppDatabase {
     required String documentId,
     InAppDocument? value,
   }) {
-    final ref = _version.collectionRef(name, collectionPath);
+    final ref = _version.ref(name, collectionPath);
     return _delegate.read(ref).then((root) {
       final raw = root is String ? jsonDecode(root) : root;
       final base = raw is Map ? raw : {};
@@ -269,7 +315,7 @@ class InAppDatabase {
       value.dispose();
     }
     _notifiers.clear();
-    _i = null;
+    _proxies.remove(name);
     _log("disposed!");
   }
 }

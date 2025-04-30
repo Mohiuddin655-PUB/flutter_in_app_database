@@ -1,44 +1,82 @@
 ## InAppDatabase
 
-## INITIALIZATIONS:
-```dart
-final _kLimitations = {
-  "users": const InAppWriteLimitation(5),
-  "posts": const InAppWriteLimitation(10),
-  "users/user_id/posts": const InAppWriteLimitation(10),
-};
+## CREATE DELEGATE
 
+```dart
+// late SharedPreferences db;
+late Map<String, dynamic> db;
+
+class DatabaseDelegate extends InAppDatabaseDelegate {
+  @override
+  Future<void> init(String name) async {
+    // db = await SharedPreferences.getInstance();
+    db = {};
+  }
+
+  @override
+  Future<Iterable<String>> paths(String dbName) async {
+    // return db.getKeys();
+    final x = db.keys.toList();
+    return x;
+  }
+
+  @override
+  Future<bool> drop(String key) async {
+    db.remove(key);
+    return true;
+  }
+
+  @override
+  Future<Object?> read(String key) async {
+    final x = db;
+    // final x = db.keys.toList();
+    // log(x.toString());
+    // return db.getString(key);
+    return db[key];
+  }
+
+  @override
+  Future<bool> write(String key, String? value) async {
+    if (value != null) {
+      // return db.setString(key, value);
+      db[key] = value;
+      return true;
+    } else {
+      // return db.remove(key);
+      db.remove(key);
+      return true;
+    }
+  }
+
+  @override
+  Future<InAppWriteLimitation?> limitation(String key) async {
+    return {
+      "users": const InAppWriteLimitation(50),
+      "posts": const InAppWriteLimitation(10),
+      "users/{user_id}/posts": const InAppWriteLimitation(10),
+    }[key]; // OPTIONAL
+  }
+}
+```
+
+## INITIALIZATIONS:
+
+```dart
 Future<void> main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  final db = await SharedPreferences.getInstance();
-  // Map<String, dynamic> db = {};
   InAppDatabase.init(
-    limiter: (key) async {
-      return _kLimitations[key]; // OPTIONAL
-    },
-    reader: (String key) async {
-      return db.getString(key);
-      // final x = db[key];
-      // return x;
-    },
-    writer: (String key, String? value) async {
-      if (value != null) {
-        return db.setString(key, value);
-        // db[key] = value;
-        // return true;
-      } else {
-        return db.remove(key);
-        // db.remove(key);
-        // return true;
-      }
-    },
+    name: "MyDatabase", // optional
+    showLogs: true, // optional
+    version: InAppDatabaseVersion.v2, // optional
+    delegate: DatabaseDelegate(), // required
   );
-  runApp(const MyApp());
+  // ...
 }
 ```
 
 ## USE CASES:
+
 ### Add collection document
+
 ```dart
 Future<InAppDocumentSnapshot?> addCollectionDocument() {
   return InAppDatabase.i.collection("users").add({
@@ -52,6 +90,7 @@ Future<InAppDocumentSnapshot?> addCollectionDocument() {
 ```
 
 ### Set new document
+
 ```dart
 Future<InAppDocumentSnapshot?> setDocument() {
   return InAppDatabase.i.collection("users").doc("1").set({
@@ -67,22 +106,36 @@ Future<InAppDocumentSnapshot?> setDocument() {
 ```
 
 ### Update specific document
+
 ```dart
 Future<InAppDocumentSnapshot?> updateSpecificDocument() {
   return InAppDatabase.i.collection("users").doc("1").update({
     'username': "This is a updated username",
     'email': "This is a updated user email",
     'age': InAppFieldValue.increment(2),
+    // to increment existing value
     'balance': InAppFieldValue.increment(-10.2),
-    'hobbies': InAppFieldValue.arrayUnion(['swimming']),
+    // to decrement existing value
+    'hobbies': InAppFieldValue.arrayFilter((e) => e.isNotEmpty),
+    // to filter existing array elements
+    'hobbies': InAppFieldValue.arrayUnion(['swimming', 'swimming']),
+    // to add new array elements
+    'hobbies': InAppFieldValue.arrayUnify(),
+    // to remove duplicate
     'skills': InAppFieldValue.arrayRemove(['node.js', 'spring boot']),
-    'timestamp': InAppFieldValue.serverTimestamp(),
+    // to remove existing array elements
+    'timestamp': InAppFieldValue.timestamp(),
+    // to add system timestamp internally
     'photoUrl': InAppFieldValue.delete(),
+    // to delete field and value
+    'is_verified': InAppFieldValue.toggle(),
+    // to change bool status internally by toggle system true/false
   });
 }
 ```
 
 ### Delete specific document
+
 ```dart
 Future<bool> deleteSpecificDocument() {
   return InAppDatabase.i.collection("users").doc("1").delete();
@@ -90,6 +143,7 @@ Future<bool> deleteSpecificDocument() {
 ```
 
 ### Get specific document
+
 ```dart
 Future<InAppDocumentSnapshot?> getSpecificDocument() {
   return InAppDatabase.i.collection("users").doc("1").get();
@@ -97,6 +151,7 @@ Future<InAppDocumentSnapshot?> getSpecificDocument() {
 ```
 
 ### Get all documents from collection
+
 ```dart
 Future<InAppQuerySnapshot> getAllDocuments() {
   return InAppDatabase.i.collection("users").get();
@@ -104,6 +159,7 @@ Future<InAppQuerySnapshot> getAllDocuments() {
 ```
 
 ### Get specific documents by simple query
+
 ```dart
 Future<InAppQuerySnapshot> getSpecificDocumentsByQuery() {
   return InAppDatabase.i
@@ -114,14 +170,15 @@ Future<InAppQuerySnapshot> getSpecificDocumentsByQuery() {
 ```
 
 ### Get specific documents by complex query
+
 ```dart
 Future<InAppQuerySnapshot> getSpecificDocumentsByQuery() {
   return InAppDatabase.i
       .collection("users")
       .where(InAppFilter.or([
-        InAppFilter("username", isEqualTo: "emma_smith"),
-        InAppFilter("age", isGreaterThanOrEqualTo: 50),
-      ]))
+    InAppFilter("username", isEqualTo: "emma_smith"),
+    InAppFilter("age", isGreaterThanOrEqualTo: 50),
+  ]))
       .where("age", isLessThanOrEqualTo: 60)
       .orderBy("age", descending: false)
       .orderBy("email", descending: false)
@@ -131,12 +188,15 @@ Future<InAppQuerySnapshot> getSpecificDocumentsByQuery() {
 ```
 
 ### Get all documents
+
 ```dart
 Stream<InAppQuerySnapshot> getCollectionSnapshots() {
   return InAppDatabase.i.collection("users").snapshots();
 }
 ```
-### Get specific documents by simple query
+
+### Listen specific documents by simple query
+
 ```dart
 Stream<InAppQuerySnapshot> getSpecificDocumentsByQuerySnapshots() {
   return InAppDatabase.i
@@ -146,15 +206,16 @@ Stream<InAppQuerySnapshot> getSpecificDocumentsByQuerySnapshots() {
 }
 ```
 
-### Get specific documents by complex query
+### Listen specific documents by complex query
+
 ```dart
 Stream<InAppQuerySnapshot> getComplexQuerySnapshots() {
   return InAppDatabase.i
       .collection("users")
       .where(InAppFilter.or([
-        InAppFilter("username", isEqualTo: "emma_smith"),
-        InAppFilter("age", isGreaterThanOrEqualTo: 50),
-      ]))
+    InAppFilter("username", isEqualTo: "emma_smith"),
+    InAppFilter("age", isGreaterThanOrEqualTo: 50),
+  ]))
       .where("age", isLessThanOrEqualTo: 60)
       .orderBy("age", descending: false)
       .orderBy("email", descending: false)
