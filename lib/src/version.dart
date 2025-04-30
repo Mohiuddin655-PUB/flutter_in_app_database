@@ -31,8 +31,6 @@ class InAppDatabaseVersion {
     switch (code) {
       case 'v1':
         return dbName;
-      case 'v2':
-        return "$dbName/";
       default:
         return "$dbName/$code/";
     }

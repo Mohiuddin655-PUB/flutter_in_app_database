@@ -29,14 +29,12 @@ class DatabaseDelegate extends InAppDatabaseDelegate {
 
   @override
   Future<Object?> read(String key) async {
-    log("READ: $key");
     // return db.getString(key);
     return db[key];
   }
 
   @override
   Future<bool> write(String key, String? value) async {
-    log("WRITE: $key");
     if (value != null) {
       // return db.setString(key, value);
       db[key] = value;
@@ -50,9 +48,8 @@ class DatabaseDelegate extends InAppDatabaseDelegate {
 
   @override
   Future<InAppWriteLimitation?> limitation(String key) async {
-    log("LIMITATION: $key");
     return {
-      "users": const InAppWriteLimitation(5),
+      "users": const InAppWriteLimitation(50),
       "posts": const InAppWriteLimitation(10),
       "users/{user_id}/posts": const InAppWriteLimitation(10),
     }[key]; // OPTIONAL
@@ -62,9 +59,9 @@ class DatabaseDelegate extends InAppDatabaseDelegate {
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   InAppDatabase.init(
-    name: "MyDatabase", // optional
+    // name: "MyDatabase", // optional
     showLogs: true, // optional
-    version: InAppDatabaseVersion.v1, // optional
+    version: InAppDatabaseVersion.v2, // optional
     delegate: DatabaseDelegate(), // required
   );
   runApp(const MyApp());

@@ -24,7 +24,7 @@ class InAppDocumentReference extends InAppReference {
     if (_cn != null) _p._notify();
     if (_dn != null) {
       if (snapshot == null) {
-        get().then((_) => _dn!.value = _);
+        get().then((value) => _dn!.value = value);
       } else {
         _dn!.value = snapshot;
       }
@@ -72,7 +72,10 @@ class InAppDocumentReference extends InAppReference {
             value: data,
           )
           .then(_n)
-          .then((_) => _ ? InAppDocumentSnapshot(mId, data) : null);
+          .then((value) {
+        _db._log(value ? "done!" : "failed!", action: "set", field: id);
+        return value;
+      }).then((value) => value ? InAppDocumentSnapshot(mId, data) : null);
     }
   }
 
@@ -107,7 +110,10 @@ class InAppDocumentReference extends InAppReference {
             value: current,
           )
           .then(_n)
-          .then((_) => _ ? InAppDocumentSnapshot(_id, current) : null);
+          .then((value) {
+        _db._log(value ? "done!" : "failed!", action: "update", field: id);
+        return value;
+      }).then((value) => value ? InAppDocumentSnapshot(_id, current) : null);
     });
   }
 
@@ -120,31 +126,36 @@ class InAppDocumentReference extends InAppReference {
   Future<bool> delete() {
     return _db
         ._w(
-      reference: reference,
-      collectionPath: _p.path,
-      collectionId: _p.id,
-      documentId: id,
-      type: InAppWriteType.document,
-    )
-        .then<bool>((_) {
-      if (_) {
-        return _p.get().then((value) {
-          if (!value.exists) {
-            return _db._w(
-              type: InAppWriteType.collection,
-              reference: _p.reference,
-              collectionPath: _p.path,
-              collectionId: _p.id,
-              documentId: _p.id,
-            );
+          reference: reference,
+          collectionPath: _p.path,
+          collectionId: _p.id,
+          documentId: id,
+          type: InAppWriteType.document,
+        )
+        .then<bool>((value) {
+          if (value) {
+            return _p.get().then((value) {
+              if (!value.exists) {
+                return _db._w(
+                  type: InAppWriteType.collection,
+                  reference: _p.reference,
+                  collectionPath: _p.path,
+                  collectionId: _p.id,
+                  documentId: _p.id,
+                );
+              } else {
+                return true;
+              }
+            });
           } else {
-            return true;
+            return value;
           }
+        })
+        .then(_n)
+        .then((value) {
+          _db._log(value ? "done!" : "failed!", action: "delete", field: id);
+          return value;
         });
-      } else {
-        return _;
-      }
-    }).then(_n);
   }
 
   /// Method to get all data in the document.
@@ -162,8 +173,8 @@ class InAppDocumentReference extends InAppReference {
       documentId: id,
       type: InAppReadType.document,
     )
-        .then((_) {
-      return _ is InAppDocumentSnapshot ? _ : InAppDocumentSnapshot(id);
+        .then((value) {
+      return value is InAppDocumentSnapshot ? value : InAppDocumentSnapshot(id);
     });
   }
 

@@ -47,7 +47,7 @@ class InAppDatabase {
     if (!showLogs) return;
     msg = msg.toString();
     if (field.isNotEmpty) {
-      msg = "${action.isEmpty ? field : '$action($field)'} :$msg";
+      msg = "${action.isEmpty ? field : '$action($field)'}: $msg";
     } else if (action.isNotEmpty) {
       msg = "$action: $msg";
     }
@@ -143,10 +143,8 @@ class InAppDatabase {
       for (var i in keysToDelete) {
         await _delegate.drop(i);
       }
-      _log("dropped!", field: ref, action: "drop");
       return true;
     } catch (msg) {
-      _log(msg, field: ref, action: "drop");
       return false;
     }
   }
