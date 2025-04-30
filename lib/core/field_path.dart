@@ -1,11 +1,4 @@
-enum InAppFieldPaths {
-  documentId,
-  none;
-
-  bool get isDocumentId => this == documentId;
-
-  bool get isNone => this == none;
-}
+enum InAppFieldPaths { documentId, none }
 
 class InAppFieldPath {
   final Object? field;

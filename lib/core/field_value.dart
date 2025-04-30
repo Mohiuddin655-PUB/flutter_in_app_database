@@ -1,22 +1,13 @@
 enum InAppFieldValues {
-  arrayUnion,
+  arrayFilter,
   arrayRemove,
+  arrayUnify,
+  arrayUnion,
   delete,
-  serverTimestamp,
   increment,
-  none;
-
-  bool get isArrayUnion => this == arrayUnion;
-
-  bool get isArrayRemove => this == arrayRemove;
-
-  bool get isDelete => this == delete;
-
-  bool get isServerTimestamp => this == serverTimestamp;
-
-  bool get isIncrement => this == increment;
-
-  bool get isNone => this == none;
+  timestamp,
+  toggle,
+  none,
 }
 
 class InAppFieldValue {
@@ -25,23 +16,35 @@ class InAppFieldValue {
 
   const InAppFieldValue(this.value, [this.type = InAppFieldValues.none]);
 
-  factory InAppFieldValue.arrayUnion(List<dynamic> elements) {
-    return InAppFieldValue(elements, InAppFieldValues.arrayUnion);
+  factory InAppFieldValue.arrayFilter(bool Function(Object?) where) {
+    return InAppFieldValue(where, InAppFieldValues.arrayFilter);
   }
 
   factory InAppFieldValue.arrayRemove(List<dynamic> elements) {
     return InAppFieldValue(elements, InAppFieldValues.arrayRemove);
   }
 
+  factory InAppFieldValue.arrayUnify() {
+    return InAppFieldValue(null, InAppFieldValues.arrayUnify);
+  }
+
+  factory InAppFieldValue.arrayUnion(List<dynamic> elements) {
+    return InAppFieldValue(elements, InAppFieldValues.arrayUnion);
+  }
+
   factory InAppFieldValue.delete() {
     return const InAppFieldValue(null, InAppFieldValues.delete);
   }
 
-  factory InAppFieldValue.serverTimestamp() {
-    return const InAppFieldValue(null, InAppFieldValues.serverTimestamp);
-  }
-
   factory InAppFieldValue.increment(num value) {
     return InAppFieldValue(value, InAppFieldValues.increment);
+  }
+
+  factory InAppFieldValue.timestamp([bool asNumberTimestamp = false]) {
+    return InAppFieldValue(asNumberTimestamp, InAppFieldValues.timestamp);
+  }
+
+  factory InAppFieldValue.toggle([bool? initial]) {
+    return InAppFieldValue(initial, InAppFieldValues.toggle);
   }
 }

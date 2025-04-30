@@ -95,7 +95,7 @@ class InAppDocumentReference extends InAppReference {
   /// ```
   Future<InAppDocumentSnapshot?> update(InAppDocument data) {
     return get().then((base) {
-      final current = _InAppMerger(base.data).merge(data);
+      final current = InAppMerger(base.data).merge(data);
       current[_idField] = id;
       return _db
           ._w(

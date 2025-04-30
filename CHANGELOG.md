@@ -1,3 +1,9 @@
+## 1.2.9
+
+* Add InFieldValue's arrayFilter, arrayUnify, toggle
+* Improve InAppFieldValue's timestamp and renamed from serverTimestamp
+* Implement dart latest version
+
 ## 1.2.8
 
 * Update snapshots as single stream

@@ -1,9 +1,9 @@
 part of 'database.dart';
 
-class _InAppMerger {
+class InAppMerger {
   final InAppDocument root;
 
-  _InAppMerger(InAppDocument? root) : root = Map.from(root ?? {});
+  InAppMerger(InAppDocument? root) : root = Map.from(root ?? {});
 
   InAppDocument merge(InAppDocument updates) {
     Map<String, dynamic> extra = {};
@@ -24,23 +24,32 @@ class _InAppMerger {
   void _apply(String field, InAppFieldValue fieldValue, dynamic baseValue) {
     final modifier = fieldValue.value;
     final type = fieldValue.type;
-    if (type.isArrayUnion) {
-      _applyArrayUnion(field, baseValue, modifier);
-    } else if (type.isArrayRemove) {
-      _applyArrayRemove(field, baseValue, modifier);
-    } else if (type.isIncrement) {
-      _applyIncrement(field, baseValue, modifier);
-    } else if (type.isDelete) {
-      _applyDelete(field);
-    } else if (type.isServerTimestamp) {
-      _applyServerTimestamp(field);
+    switch (type) {
+      case InAppFieldValues.arrayFilter:
+        return _applyArrayFilter(field, baseValue, modifier);
+      case InAppFieldValues.arrayRemove:
+        return _applyArrayRemove(field, baseValue, modifier);
+      case InAppFieldValues.arrayUnify:
+        return _applyArrayUnify(field, baseValue);
+      case InAppFieldValues.arrayUnion:
+        return _applyArrayUnion(field, baseValue, modifier);
+      case InAppFieldValues.delete:
+        return _applyDelete(field);
+      case InAppFieldValues.increment:
+        return _applyIncrement(field, baseValue, modifier);
+      case InAppFieldValues.timestamp:
+        return _applyTimestamp(field, modifier);
+      case InAppFieldValues.toggle:
+        return _applyToggle(field, baseValue, modifier);
+      case InAppFieldValues.none:
+        return;
     }
   }
 
-  void _applyArrayUnion(String field, dynamic base, dynamic modifier) {
-    if (base is List? && modifier is List) {
-      final mergedList = List.from(base ?? [])..addAll(modifier);
-      root[field] = mergedList;
+  void _applyArrayFilter(String field, dynamic base, dynamic modifier) {
+    if (base is List && modifier is bool Function(Object?)) {
+      final mergedList = List.from(base.where(modifier));
+      root[field] = mergedList.isEmpty ? null : mergedList;
     }
   }
 
@@ -48,6 +57,20 @@ class _InAppMerger {
     if (base is List && modifier is List) {
       final filteredList = base.where((i) => !modifier.contains(i)).toList();
       root[field] = filteredList;
+    }
+  }
+
+  void _applyArrayUnify(String field, dynamic base) {
+    if (base is List) {
+      final mergedList = base.toSet().toList();
+      root[field] = mergedList;
+    }
+  }
+
+  void _applyArrayUnion(String field, dynamic base, dynamic modifier) {
+    if (base is List? && modifier is List) {
+      final mergedList = List.from(base ?? [])..addAll(modifier);
+      root[field] = mergedList;
     }
   }
 
@@ -62,7 +85,18 @@ class _InAppMerger {
     root.remove(field);
   }
 
-  void _applyServerTimestamp(String field) {
-    root[field] = DateTime.now().toString();
+  void _applyTimestamp(String field, dynamic modifier) {
+    final now = DateTime.now();
+    root[field] = (modifier is bool ? modifier : false)
+        ? now.millisecondsSinceEpoch
+        : now.toString();
+  }
+
+  void _applyToggle(String field, dynamic base, dynamic modifier) {
+    if (base is bool?) {
+      base ??= (modifier is bool ? modifier : false);
+      final newValue = !base;
+      root[field] = newValue;
+    }
   }
 }
