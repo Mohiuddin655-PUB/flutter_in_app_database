@@ -13,9 +13,8 @@ class InAppDatabaseVersion {
 
   String get documentIdRef => code == v1.code ? "_id" : "id";
 
-  String ref(String dbName, [String? path]) {
-    final root = code == v1.code ? dbName : "$dbName/$code/";
-    if (path == null || path.isEmpty) return root;
-    return "$root$path";
+  String ref([String? path]) {
+    if (path == null) return code == v1.code ? '' : '$code/';
+    return code == v1.code ? path : "$code/$path";
   }
 }

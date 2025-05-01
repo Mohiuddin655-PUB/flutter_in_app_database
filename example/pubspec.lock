@@ -73,7 +73,7 @@ packages:
       path: ".."
       relative: true
     source: path
-    version: "1.3.0"
+    version: "1.3.1"
   in_app_faker:
     dependency: "direct main"
     description:
@@ -154,6 +154,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.9.1"
+  pluralize:
+    dependency: transitive
+    description:
+      name: pluralize
+      sha256: caa548d703da7dab4bb77e82eed2698b0d507f6f8fe5f65fe1ab2645468e7872
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.0.8"
   sky_engine:
     dependency: transitive
     description: flutter

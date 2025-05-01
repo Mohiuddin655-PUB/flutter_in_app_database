@@ -1,3 +1,9 @@
+## 1.3.1
+
+* Add PathModifier util
+* Improve limitation system
+* Improve delegate
+
 ## 1.3.0
 
 * Add multi-database system

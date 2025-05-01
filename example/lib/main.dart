@@ -9,7 +9,7 @@ late Map<String, dynamic> db;
 
 class DatabaseDelegate extends InAppDatabaseDelegate {
   @override
-  Future<void> init(String name) async {
+  Future<void> init(String dbName) async {
     // db = await SharedPreferences.getInstance();
     db = {};
   }
@@ -22,13 +22,13 @@ class DatabaseDelegate extends InAppDatabaseDelegate {
   }
 
   @override
-  Future<bool> drop(String key) async {
+  Future<bool> drop(String dbName, String key) async {
     db.remove(key);
     return true;
   }
 
   @override
-  Future<Object?> read(String key) async {
+  Future<Object?> read(String dbName, String key) async {
     final x = db;
     // final x = db.keys.toList();
     // log(x.toString());
@@ -37,7 +37,7 @@ class DatabaseDelegate extends InAppDatabaseDelegate {
   }
 
   @override
-  Future<bool> write(String key, String? value) async {
+  Future<bool> write(String dbName, String key, String? value) async {
     if (value != null) {
       // return db.setString(key, value);
       db[key] = value;
@@ -50,12 +50,15 @@ class DatabaseDelegate extends InAppDatabaseDelegate {
   }
 
   @override
-  Future<InAppWriteLimitation?> limitation(String key) async {
+  Future<InAppWriteLimitation?> limitation(
+    String dbName,
+    PathDetails details,
+  ) async {
     return {
       "users": const InAppWriteLimitation(50),
       "posts": const InAppWriteLimitation(10),
       "users/{user_id}/posts": const InAppWriteLimitation(10),
-    }[key]; // OPTIONAL
+    }[details.format]; // OPTIONAL
   }
 }
 

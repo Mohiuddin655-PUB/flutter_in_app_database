@@ -7,6 +7,7 @@ import 'package:in_app_query/in_app_query.dart';
 
 import '../core/field_value.dart';
 import '../core/paging_options.dart';
+import '../core/path.dart';
 import 'delegate.dart';
 
 part 'base.dart';
@@ -31,7 +32,7 @@ class InAppDatabase {
 
   set version(String code) => _version = InAppDatabaseVersion.custom(code);
 
-  String get ref => _version.ref(name);
+  String get ref => _version.ref();
 
   Future<List<String>> get keys async {
     final paths = await _delegate.paths(name);
@@ -128,7 +129,7 @@ class InAppDatabase {
   }
 
   InAppQueryReference collection(String field) {
-    final reference = _version.ref(name, field);
+    final reference = _version.ref(field);
     return InAppQueryReference(
       db: this,
       reference: reference,
@@ -173,21 +174,21 @@ class InAppDatabase {
     bool related = true,
     Iterable<String> Function(String path, Iterable<String>)? filter,
   }) async {
-    final ref = _version.ref(name, collectionPath);
+    final ref = _version.ref(collectionPath);
     try {
-      if (!related) return _delegate.drop(ref);
+      if (!related) return _delegate.drop(name, ref);
       final paths = await _delegate.paths(name);
       if (filter != null) {
         final keys = filter(ref, paths);
         for (var i in keys) {
-          await _delegate.drop(i);
+          await _delegate.drop(name, i);
         }
         return true;
       }
       final keysToDelete = paths.where((key) => key.startsWith(ref)).toList();
       if (keysToDelete.isEmpty) throw "Path not found!";
       for (var i in keysToDelete) {
-        await _delegate.drop(i);
+        await _delegate.drop(name, i);
       }
       return true;
     } catch (msg) {
@@ -198,7 +199,7 @@ class InAppDatabase {
   Future<Iterable<String>> _k(String path) async {
     try {
       final paths = await _delegate.paths(name);
-      final ref = _version.ref(name, path);
+      final ref = _version.ref(path);
       final children = paths.where((key) => key.startsWith(ref)).toList();
       return children;
     } catch (_) {
@@ -213,8 +214,8 @@ class InAppDatabase {
     required String collectionId,
     required String documentId,
   }) {
-    final ref = _version.ref(name, collectionPath);
-    return _delegate.read(ref).then((raw) {
+    final ref = _version.ref(collectionPath);
+    return _delegate.read(name, ref).then((raw) {
       final value = raw is String ? jsonDecode(raw) : raw;
       if (value is Map) {
         if (type.isCollection) {
@@ -254,8 +255,8 @@ class InAppDatabase {
     required String documentId,
     InAppDocument? value,
   }) {
-    final ref = _version.ref(name, collectionPath);
-    return _delegate.read(ref).then((root) {
+    final ref = _version.ref(collectionPath);
+    return _delegate.read(name, ref).then((root) {
       final raw = root is String ? jsonDecode(root) : root;
       final base = raw is Map ? raw : {};
       if (type.isDocument) {
@@ -283,7 +284,7 @@ class InAppDatabase {
         }
       }
       return _wb(collectionPath, base).then((value) {
-        return _delegate.write(ref, value);
+        return _delegate.write(name, ref, value);
       });
     });
   }
@@ -291,7 +292,10 @@ class InAppDatabase {
   Future<String?> _wb(String path, Map base) async {
     String? body;
     if (base.isNotEmpty) {
-      final limitation = await _delegate.limitation(path);
+      final limitation = await _delegate.limitation(
+        name,
+        PathModifier.format(path),
+      );
       if (limitation != null && limitation.limit > 0) {
         final limit = limitation.limit;
         final entries = base.entries;
