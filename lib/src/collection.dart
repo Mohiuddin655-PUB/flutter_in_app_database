@@ -106,7 +106,7 @@ abstract class InAppCollectionReference extends InAppReference {
     Iterable<String> Function(String path, Iterable<String>)? filter,
   }) async {
     return _db
-        ._drop(path, related: related, filter: filter)
+        ._delete(path, related: related, filter: filter)
         .then((value) => notifiable ? _n(value) : value)
         .then((value) {
       _db._log(value ? "done!" : "failed!", action: "drop", field: id);
@@ -128,11 +128,11 @@ abstract class InAppCollectionReference extends InAppReference {
 
   Stream<InAppQuerySnapshot> snapshots() {
     final n = _db._addNotifier(path);
-    Future.delayed(const Duration(seconds: 1)).whenComplete(_notify);
     return Stream.multi((c) {
       void update() => c.add(n.value ?? InAppQuerySnapshot(id));
       n.addListener(update);
       c.onCancel = () => n.removeListener(update);
+      _notify();
     });
   }
 }

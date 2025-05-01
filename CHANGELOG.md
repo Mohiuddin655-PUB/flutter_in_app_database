@@ -1,3 +1,9 @@
+## 1.3.2
+
+* Improve database
+* Add database switching system to switch database and use separate database
+* Improve listening functions to listen data instantly when any change on path
+
 ## 1.3.1
 
 * Add PathModifier util

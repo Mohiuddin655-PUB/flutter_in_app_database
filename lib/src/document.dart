@@ -180,11 +180,11 @@ class InAppDocumentReference extends InAppReference {
 
   Stream<InAppDocumentSnapshot> snapshots() {
     final n = _db._addChildNotifier(_p.path, id);
-    Future.delayed(const Duration(seconds: 1)).whenComplete(_notify);
     return Stream.multi((c) {
       void update() => c.add(n.value ?? InAppDocumentSnapshot(id));
       n.addListener(update);
       c.onCancel = () => n.removeListener(update);
+      _notify();
     });
   }
 }

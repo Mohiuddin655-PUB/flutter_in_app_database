@@ -4,47 +4,44 @@ import 'package:flutter/material.dart';
 import 'package:in_app_database/in_app_database.dart';
 import 'package:in_app_faker/in_app_faker.dart';
 
-// late SharedPreferences db;
-late Map<String, dynamic> db;
+Map<String, Map<String, dynamic>> databases = {};
 
 class DatabaseDelegate extends InAppDatabaseDelegate {
   @override
   Future<void> init(String dbName) async {
-    // db = await SharedPreferences.getInstance();
-    db = {};
+    databases[dbName] = {};
   }
 
   @override
   Future<Iterable<String>> paths(String dbName) async {
-    // return db.getKeys();
-    final x = db.keys.toList();
+    final x = databases[dbName]!.keys.toList();
     return x;
   }
 
   @override
-  Future<bool> drop(String dbName, String key) async {
-    db.remove(key);
+  Future<bool> delete(String dbName, String key) async {
+    databases[dbName]!.remove(key);
+    return true;
+  }
+
+  @override
+  Future<bool> drop(String dbName) async {
+    databases.remove(dbName);
     return true;
   }
 
   @override
   Future<Object?> read(String dbName, String key) async {
-    final x = db;
-    // final x = db.keys.toList();
-    // log(x.toString());
-    // return db.getString(key);
-    return db[key];
+    return databases[dbName]![key];
   }
 
   @override
   Future<bool> write(String dbName, String key, String? value) async {
     if (value != null) {
-      // return db.setString(key, value);
-      db[key] = value;
+      databases[dbName]![key] = value;
       return true;
     } else {
-      // return db.remove(key);
-      db.remove(key);
+      databases[dbName]!.remove(key);
       return true;
     }
   }
@@ -65,7 +62,6 @@ class DatabaseDelegate extends InAppDatabaseDelegate {
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   InAppDatabase.init(
-    name: "MyDatabase", // optional
     showLogs: true, // optional
     version: InAppDatabaseVersion.v2, // optional
     delegate: DatabaseDelegate(), // required
@@ -100,229 +96,260 @@ class Home extends StatefulWidget {
 class _HomeState extends State<Home> {
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text("In App Database"),
-        centerTitle: true,
-      ),
-      body: SafeArea(
-        child: SizedBox(
-          width: double.infinity,
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                const Text(
-                  "Counter Snapshot",
-                  style: TextStyle(
-                    color: Colors.black,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                  ),
-                ),
-                StreamBuilder(
-                  stream:
-                      InAppDatabase.i.collection("users").count().snapshots(),
-                  builder: (context, s) {
-                    final count = s.data?.count ?? 0;
-                    return Text("Total users: $count");
-                  },
-                ),
-                const SizedBox(height: 24),
-                const Text(
-                  "Document Snapshot",
-                  style: TextStyle(
-                    color: Colors.black,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                  ),
-                ),
-                StreamBuilder(
-                  stream:
-                      InAppDatabase.i.collection("users").doc("1").snapshots(),
-                  builder: (context, s) {
-                    final item = s.data?.data ?? {};
-                    return ListTile(
-                      leading: CircleAvatar(
-                        child: Text("${item["age"]}"),
+    return ListenableBuilder(
+      listenable: InAppDatabase.i,
+      builder: (context, child) {
+        return Scaffold(
+          appBar: AppBar(
+            title: Text(InAppDatabase.i.name),
+            centerTitle: true,
+          ),
+          body: SafeArea(
+            child: SizedBox(
+              width: double.infinity,
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    const Text(
+                      "Counter Snapshot",
+                      style: TextStyle(
+                        color: Colors.black,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
                       ),
-                      title: Text("${item["username"]}"),
-                      subtitle: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text("${item["email"]}"),
-                          Text(
-                            "Updated At: ${item["updateAt"] ?? "Not update yet"}",
-                            maxLines: 1,
-                          ),
-                        ],
+                    ),
+                    FutureBuilder(
+                      future: InAppDatabase.i.collection("users").count().get(),
+                      builder: (context, s) {
+                        final count = s.data?.count ?? 0;
+                        return Text("Total users: $count");
+                      },
+                    ),
+                    const SizedBox(height: 24),
+                    const Text(
+                      "Document Snapshot",
+                      style: TextStyle(
+                        color: Colors.black,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
                       ),
-                    );
-                  },
-                ),
-                const SizedBox(height: 24),
-                const Text(
-                  "Collection Snapshots",
-                  style: TextStyle(
-                    color: Colors.black,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                  ),
-                ),
-                StreamBuilder(
-                  stream: InAppDatabase.i.collection("users").snapshots(),
-                  builder: (context, s) {
-                    final data = s.data?.docs ?? [];
-                    return ListView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount: data.length,
-                      itemBuilder: (context, index) {
-                        final item = data.elementAt(index).data;
+                    ),
+                    StreamBuilder(
+                      stream: InAppDatabase.i
+                          .collection("users")
+                          .doc("1")
+                          .snapshots(),
+                      builder: (context, s) {
+                        final item = s.data?.data ?? {};
                         return ListTile(
                           leading: CircleAvatar(
-                            child: Text("${item?["age"]}"),
+                            child: Text("${item["age"]}"),
                           ),
-                          title: Text("${item?["username"]}"),
+                          title: Text("${item["username"]}"),
                           subtitle: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text("${item?["email"]}"),
+                              Text("${item["email"]}"),
                               Text(
-                                "Updated At: ${item?["updateAt"] ?? "Not update yet"}",
+                                "Updated At: ${item["updateAt"] ?? "Not update yet"}",
                                 maxLines: 1,
                               ),
                             ],
                           ),
                         );
                       },
-                    );
-                  },
+                    ),
+                    const SizedBox(height: 24),
+                    const Text(
+                      "Collection Snapshots",
+                      style: TextStyle(
+                        color: Colors.black,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                    StreamBuilder(
+                      stream: InAppDatabase.i.collection("users").snapshots(),
+                      builder: (context, s) {
+                        final data = s.data?.docs ?? [];
+                        return ListView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: data.length,
+                          itemBuilder: (context, index) {
+                            final item = data.elementAt(index).data;
+                            return ListTile(
+                              leading: CircleAvatar(
+                                child: Text("${item?["age"]}"),
+                              ),
+                              title: Text("${item?["username"]}"),
+                              subtitle: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text("${item?["email"]}"),
+                                  Text(
+                                    "Updated At: ${item?["updateAt"] ?? "Not update yet"}",
+                                    maxLines: 1,
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        );
+                      },
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
-        ),
-      ),
-      floatingActionButton: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          Button(
-            text: "Add",
-            onClick: () => InAppDatabase.i.collection("users").add({
-              "username": UserFaker.username,
-              "email": UserFaker.email,
-              "age": UserFaker.age,
-              "country": UserFaker.country,
-              "photoUrl": UserFaker.photoUrl,
-            }),
-          ),
-          Button(
-            text: "Set",
-            onClick: () {
-              InAppDatabase.i.collection("users").doc("1").set({
-                "username": UserFaker.username,
-                "email": UserFaker.email,
-                "age": UserFaker.age,
-                "country": UserFaker.country,
-                "photoUrl": UserFaker.photoUrl,
-              });
-            },
-          ),
-          Button(
-            text: "Update",
-            onClick: () {
-              InAppDatabase.i.collection("users").doc("1").update({
-                "updateAt": DateTime.now().millisecondsSinceEpoch.toString(),
-              });
-            },
-          ),
-          Button(
-            text: "Drop",
-            onClick: () => InAppDatabase.i.drop(
-              "users",
-              notifiable: true,
-            ),
-          ),
-          Button(
-            text: "Delete",
-            onClick: () {
-              InAppDatabase.i.collection("users").doc("1").delete();
-            },
-          ),
-          Button(
-            text: "Get",
-            onClick: () {
-              InAppDatabase.i.collection("users").doc("1").get().then((value) {
-                DataBottomSheet.show(
-                  context,
-                  title: "Get",
-                  contents: [value],
-                );
-              });
-            },
-          ),
-          Button(
-            text: "Gets",
-            onClick: () {
-              InAppDatabase.i.collection("users").get().then((value) {
-                if (value.exists) {
-                  DataBottomSheet.show(
-                    context,
-                    title: "Gets",
-                    contents: value.docs,
+          floatingActionButton: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Button(
+                text: "Create MyDatabase",
+                onClick: () {
+                  InAppDatabase.create("MyDatabase");
+                },
+              ),
+              Button(
+                text: "Drop MyDatabase",
+                onClick: () {
+                  InAppDatabase.delete("MyDatabase");
+                },
+              ),
+              Button(
+                text:
+                    "Switch ${InAppDatabase.i.name == "default" ? "MyDatabase" : "default"}",
+                onClick: () {
+                  InAppDatabase.activate(
+                    InAppDatabase.i.name == "MyDatabase" ? null : "MyDatabase",
                   );
-                }
-              });
-            },
+                },
+              ),
+              Button(
+                text: "Add",
+                onClick: () => InAppDatabase.i.collection("users").add({
+                  "username": UserFaker.username,
+                  "email": UserFaker.email,
+                  "age": UserFaker.age,
+                  "country": UserFaker.country,
+                  "photoUrl": UserFaker.photoUrl,
+                }),
+              ),
+              Button(
+                text: "Set",
+                onClick: () {
+                  InAppDatabase.i.collection("users").doc("1").set({
+                    "username": UserFaker.username,
+                    "email": UserFaker.email,
+                    "age": UserFaker.age,
+                    "country": UserFaker.country,
+                    "photoUrl": UserFaker.photoUrl,
+                  });
+                },
+              ),
+              Button(
+                text: "Update",
+                onClick: () {
+                  InAppDatabase.i.collection("users").doc("1").update({
+                    "updateAt":
+                        DateTime.now().millisecondsSinceEpoch.toString(),
+                  });
+                },
+              ),
+              Button(
+                text: "Drop",
+                onClick: () => InAppDatabase.i.collection("users").drop(
+                      notifiable: true,
+                    ),
+              ),
+              Button(
+                text: "Delete",
+                onClick: () {
+                  InAppDatabase.i.collection("users").doc("1").delete();
+                },
+              ),
+              Button(
+                text: "Get",
+                onClick: () {
+                  InAppDatabase.i
+                      .collection("users")
+                      .doc("1")
+                      .get()
+                      .then((value) {
+                    DataBottomSheet.show(
+                      context,
+                      title: "Get",
+                      contents: [value],
+                    );
+                  });
+                },
+              ),
+              Button(
+                text: "Gets",
+                onClick: () {
+                  InAppDatabase.i.collection("users").get().then((value) {
+                    if (value.exists) {
+                      DataBottomSheet.show(
+                        context,
+                        title: "Gets",
+                        contents: value.docs,
+                      );
+                    }
+                  });
+                },
+              ),
+              Button(
+                text: "Query",
+                onClick: () {
+                  InAppDatabase.i
+                      .collection("users")
+                      .where("username", isEqualTo: "emma_smith")
+                      .get()
+                      .then((value) {
+                    if (value.exists) {
+                      DataBottomSheet.show(
+                        context,
+                        title: "Query",
+                        contents: value.docs,
+                      );
+                    }
+                  });
+                },
+              ),
+              Button(
+                text: "Filter",
+                onClick: () {
+                  InAppDatabase.i
+                      .collection("users")
+                      .where(InAppFilter.or([
+                        InAppFilter("username", isEqualTo: "emma_smith"),
+                        InAppFilter("age", isGreaterThanOrEqualTo: 50),
+                      ]))
+                      .where("age", isLessThanOrEqualTo: 60)
+                      .orderBy("age", descending: false)
+                      .orderBy("email", descending: false)
+                      .limit(10)
+                      .get()
+                      .then((value) {
+                    if (value.exists) {
+                      DataBottomSheet.show(
+                        context,
+                        title: "Filter",
+                        contents: value.docs,
+                      );
+                    }
+                  });
+                },
+              ),
+            ],
           ),
-          Button(
-            text: "Query",
-            onClick: () {
-              InAppDatabase.i
-                  .collection("users")
-                  .where("username", isEqualTo: "emma_smith")
-                  .get()
-                  .then((value) {
-                if (value.exists) {
-                  DataBottomSheet.show(
-                    context,
-                    title: "Query",
-                    contents: value.docs,
-                  );
-                }
-              });
-            },
-          ),
-          Button(
-            text: "Filter",
-            onClick: () {
-              InAppDatabase.i
-                  .collection("users")
-                  .where(InAppFilter.or([
-                    InAppFilter("username", isEqualTo: "emma_smith"),
-                    InAppFilter("age", isGreaterThanOrEqualTo: 50),
-                  ]))
-                  .where("age", isLessThanOrEqualTo: 60)
-                  .orderBy("age", descending: false)
-                  .orderBy("email", descending: false)
-                  .limit(10)
-                  .get()
-                  .then((value) {
-                if (value.exists) {
-                  DataBottomSheet.show(
-                    context,
-                    title: "Filter",
-                    contents: value.docs,
-                  );
-                }
-              });
-            },
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 }

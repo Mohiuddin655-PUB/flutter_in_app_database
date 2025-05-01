@@ -1,5 +1,7 @@
 library;
 
+export 'package:pluralize/pluralize.dart';
+
 export 'core/field_path.dart';
 export 'core/field_value.dart';
 export 'core/filter.dart';

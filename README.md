@@ -3,58 +3,58 @@
 ## CREATE DELEGATE
 
 ```dart
-// late SharedPreferences db;
-late Map<String, dynamic> db;
+Map<String, Map<String, dynamic>> databases = {};
 
 class DatabaseDelegate extends InAppDatabaseDelegate {
   @override
-  Future<void> init(String name) async {
-    // db = await SharedPreferences.getInstance();
-    db = {};
+  Future<void> init(String dbName) async {
+    databases[dbName] = {};
   }
 
   @override
   Future<Iterable<String>> paths(String dbName) async {
-    // return db.getKeys();
-    final x = db.keys.toList();
+    final x = databases[dbName]!.keys.toList();
     return x;
   }
 
   @override
-  Future<bool> drop(String key) async {
-    db.remove(key);
+  Future<bool> delete(String dbName, String key) async {
+    databases[dbName]!.remove(key);
     return true;
   }
 
   @override
-  Future<Object?> read(String key) async {
-    final x = db;
-    // final x = db.keys.toList();
-    // log(x.toString());
-    // return db.getString(key);
-    return db[key];
+  Future<bool> drop(String dbName) async {
+    databases.remove(dbName);
+    return true;
   }
 
   @override
-  Future<bool> write(String key, String? value) async {
+  Future<Object?> read(String dbName, String key) async {
+    return databases[dbName]![key];
+  }
+
+  @override
+  Future<bool> write(String dbName, String key, String? value) async {
     if (value != null) {
-      // return db.setString(key, value);
-      db[key] = value;
+      databases[dbName]![key] = value;
       return true;
     } else {
-      // return db.remove(key);
-      db.remove(key);
+      databases[dbName]!.remove(key);
       return true;
     }
   }
 
   @override
-  Future<InAppWriteLimitation?> limitation(String key) async {
+  Future<InAppWriteLimitation?> limitation(
+      String dbName,
+      PathDetails details,
+      ) async {
     return {
       "users": const InAppWriteLimitation(50),
       "posts": const InAppWriteLimitation(10),
       "users/{user_id}/posts": const InAppWriteLimitation(10),
-    }[key]; // OPTIONAL
+    }[details.format]; // OPTIONAL
   }
 }
 ```
@@ -64,10 +64,9 @@ class DatabaseDelegate extends InAppDatabaseDelegate {
 ```dart
 Future<void> main() async {
   InAppDatabase.init(
-    name: "MyDatabase", // optional
+    delegate: DatabaseDelegate(), // required
     showLogs: true, // optional
     version: InAppDatabaseVersion.v2, // optional
-    delegate: DatabaseDelegate(), // required
   );
   // ...
 }

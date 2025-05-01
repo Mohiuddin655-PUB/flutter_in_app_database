@@ -17,7 +17,6 @@ class InAppCounterReference extends InAppReference {
 
   Stream<InAppCounterSnapshot> snapshots() {
     final n = _db._addNotifier(_p.path);
-    Future.delayed(const Duration(seconds: 1)).whenComplete(_p._notify);
     return Stream.multi((c) {
       void update() {
         c.add(InAppCounterSnapshot(
@@ -29,6 +28,7 @@ class InAppCounterReference extends InAppReference {
 
       n.addListener(update);
       c.onCancel = () => n.removeListener(update);
+      _p._notify();
     });
   }
 }
