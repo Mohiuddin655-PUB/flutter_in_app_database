@@ -120,8 +120,11 @@ class _HomeState extends State<Home> {
                         fontSize: 16,
                       ),
                     ),
-                    FutureBuilder(
-                      future: InAppDatabase.i.collection("users").count().get(),
+                    StreamBuilder(
+                      stream: InAppDatabase.i
+                          .collection("users")
+                          .count()
+                          .snapshots(),
                       builder: (context, s) {
                         final count = s.data?.count ?? 0;
                         return Text("Total users: $count");
