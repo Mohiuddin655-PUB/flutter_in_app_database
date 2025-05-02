@@ -53,6 +53,8 @@ class InAppDatabase extends ChangeNotifier {
         .toList();
   }
 
+  bool get isInitialized => isInitializedAs(_name);
+
   void _log(msg, {String field = '', String action = ''}) {
     if (!showLogs || kReleaseMode) return;
     msg = msg.toString();
@@ -63,15 +65,6 @@ class InAppDatabase extends ChangeNotifier {
     }
     log(msg, name: "IN_APP_DATABASE");
   }
-
-  InAppDatabase._({
-    required String name,
-    this.showLogs = false,
-    InAppDatabaseVersion? version,
-    required InAppDatabaseDelegate delegate,
-  })  : _name = name,
-        _version = version ?? InAppDatabaseVersion.v1,
-        _delegate = delegate;
 
   static InAppDatabase? _i;
 
@@ -85,6 +78,23 @@ class InAppDatabase extends ChangeNotifier {
   static InAppDatabase get instance => i;
 
   static String _defaultName = '__in_app_database__';
+
+  static final Map<String, bool> _databases = {};
+
+  static List<String> get databases => _databases.keys.toList();
+
+  static bool isInitializedAs(String name) => _databases[name] ?? false;
+
+  InAppDatabase._({
+    required String name,
+    this.showLogs = false,
+    InAppDatabaseVersion? version,
+    required InAppDatabaseDelegate delegate,
+  })  : _name = name,
+        _version = version ?? InAppDatabaseVersion.v1,
+        _delegate = delegate;
+
+  ValueNotifier<bool> initializing = ValueNotifier(false);
 
   static Future<bool> init({
     String? name,
@@ -100,53 +110,80 @@ class InAppDatabase extends ChangeNotifier {
         version: version,
         delegate: delegate,
       );
-      await i._delegate.init(i._name);
-      _databases.add(_defaultName);
+      i.initializing.value = true;
+      final initialized = await i._delegate.init(i._name);
+      i.initializing.value = false;
+      if (!initialized) throw "$InAppDatabase not initialized!";
+      _databases[_defaultName] = true;
       i._log("$InAppDatabase initialized!");
+      i.notifyListeners();
       return true;
     } catch (msg) {
+      i.initializing.value = false;
+      i._log(msg);
       return false;
     }
   }
 
-  static final Set<String> _databases = {};
+  ValueNotifier<bool> activating = ValueNotifier(false);
 
-  static List<String> get databases => _databases.toList();
-
-  static bool activate([String? name]) {
-    name ??= _defaultName;
-    if (!databases.contains(name)) {
-      i._log(
-        "$InAppDatabase($name) not activated for reason $InAppDatabase($name) not created yet",
-      );
-      return false;
-    }
-    i._name = name;
-    i.notifyListeners();
-    i._log(
-      "$InAppDatabase(${name == _defaultName ? "default" : name}) activated!",
-    );
-    return true;
-  }
-
-  static Future<bool> create(String name) async {
+  static Future<bool> activate([String? name]) async {
     try {
-      if (_databases.contains(name)) {
-        throw "$InAppDatabase($name) already exists!";
+      name ??= _defaultName;
+      if (!databases.contains(name)) {
+        throw "$InAppDatabase($name) not activated for reason $InAppDatabase($name) not created yet";
       }
-      await i._delegate.init(name);
-      _databases.add(name);
-      i._log("$InAppDatabase($name) created successfully.");
+      if (!isInitializedAs(name)) {
+        i.activating.value = true;
+        final created = await i._delegate.init(name);
+        i.activating.value = false;
+        if (!created) {
+          throw "$InAppDatabase(${name == _defaultName ? "default" : name}) not activated!";
+        }
+        _databases[name] = created;
+      }
+      i._name = name;
+      i._log(
+        "$InAppDatabase(${name == _defaultName ? "default" : name}) activated!",
+      );
+      i.notifyListeners();
       return true;
     } catch (msg) {
+      i.activating.value = false;
       i._log(msg);
       rethrow;
     }
   }
 
+  ValueNotifier<bool> creating = ValueNotifier(false);
+
+  static Future<bool> create(String name) async {
+    try {
+      if (databases.contains(name)) {
+        throw "$InAppDatabase($name) already exists!";
+      }
+      i.creating.value = true;
+      final created = await i._delegate.init(name);
+      i.creating.value = false;
+      if (!created) {
+        throw "$InAppDatabase($name) created unsuccessfully.";
+      }
+      _databases[name] = created;
+      i._log("$InAppDatabase($name) created successfully");
+      i.notifyListeners();
+      return true;
+    } catch (msg) {
+      i.creating.value = false;
+      i._log(msg);
+      rethrow;
+    }
+  }
+
+  ValueNotifier<bool> deleting = ValueNotifier(false);
+
   static Future<bool> delete(String name) async {
     try {
-      if (!_databases.contains(name)) {
+      if (!databases.contains(name)) {
         throw "This database has already been deleted!";
       }
       if (name == "default" || name == _defaultName) {
@@ -155,12 +192,18 @@ class InAppDatabase extends ChangeNotifier {
       if (name == i._name) {
         throw "The database is currently active. Please deactivate it before deletion.";
       }
-      await i._delegate.drop(name);
+      i.deleting.value = true;
+      final deleted = await i._delegate.drop(name);
+      i.deleting.value = false;
+      if (!deleted) {
+        throw "$InAppDatabase($name) deleted unsuccessfully.";
+      }
       _databases.remove(name);
-      i._log("$InAppDatabase($name) has deleted!");
+      i._log("$InAppDatabase($name) deleted successfully");
       i.notifyListeners();
       return true;
     } catch (msg) {
+      i.deleting.value = false;
       i._log(msg);
       rethrow;
     }
@@ -194,6 +237,25 @@ class InAppDatabase extends ChangeNotifier {
     return _addNotifier(reference).set(id, value);
   }
 
+  int _executes = 0;
+
+  Future<T> _execute<T>(Future<T> Function() callback, [bool? internal]) async {
+    try {
+      if (!isInitialized) throw "$InAppDatabase<$_name> not initialized yet!";
+      if (!(internal ?? false)) _executes = 0;
+      return callback();
+    } catch (_) {
+      if (_executes > 5) {
+        _executes = 0;
+        rethrow;
+      }
+      _executes++;
+      return Future.delayed(Duration(seconds: 2), () {
+        return _execute(callback, true);
+      });
+    }
+  }
+
   Future<bool> _delete(
     String collectionPath, {
     bool related = true,
@@ -201,21 +263,23 @@ class InAppDatabase extends ChangeNotifier {
   }) async {
     final ref = _version.ref(collectionPath);
     try {
-      if (!related) return _delegate.delete(_name, ref);
-      final paths = await _delegate.paths(_name);
-      if (filter != null) {
-        final keys = filter(ref, paths);
-        for (var i in keys) {
+      return _execute(() async {
+        if (!related) return _delegate.delete(_name, ref);
+        final paths = await _delegate.paths(_name);
+        if (filter != null) {
+          final keys = filter(ref, paths);
+          for (var i in keys) {
+            await _delegate.delete(_name, i);
+          }
+          return true;
+        }
+        final keysToDelete = paths.where((key) => key.startsWith(ref)).toList();
+        if (keysToDelete.isEmpty) throw "Path not found!";
+        for (var i in keysToDelete) {
           await _delegate.delete(_name, i);
         }
         return true;
-      }
-      final keysToDelete = paths.where((key) => key.startsWith(ref)).toList();
-      if (keysToDelete.isEmpty) throw "Path not found!";
-      for (var i in keysToDelete) {
-        await _delegate.delete(_name, i);
-      }
-      return true;
+      });
     } catch (msg) {
       return false;
     }
@@ -223,10 +287,12 @@ class InAppDatabase extends ChangeNotifier {
 
   Future<Iterable<String>> _k(String path) async {
     try {
-      final paths = await _delegate.paths(_name);
-      final ref = _version.ref(path);
-      final children = paths.where((key) => key.startsWith(ref)).toList();
-      return children;
+      return _execute(() async {
+        final paths = await _delegate.paths(_name);
+        final ref = _version.ref(path);
+        final children = paths.where((key) => key.startsWith(ref)).toList();
+        return children;
+      });
     } catch (_) {
       return [];
     }
@@ -238,38 +304,44 @@ class InAppDatabase extends ChangeNotifier {
     required String collectionPath,
     required String collectionId,
     required String documentId,
-  }) {
-    final ref = _version.ref(collectionPath);
-    return _delegate.read(_name, ref).then((raw) {
-      final value = raw is String ? jsonDecode(raw) : raw;
-      if (value is Map) {
-        if (type.isCollection) {
-          final data = value.entries
-              .map((e) {
-                final x = e.value;
-                final y = x is String ? jsonDecode(x) : x;
-                final z = y is InAppDocument ? y : null;
-                return InAppDocumentSnapshot(e.key, z);
-              })
-              .where((i) => i.data != null && i.data!.isNotEmpty)
-              .toList();
-          return InAppQuerySnapshot(collectionId, data);
-        } else if (type.isDocument) {
-          final docId = documentId;
-          final raw = value[docId];
-          final doc = raw is String
-              ? jsonDecode(raw)
-              : raw is InAppDocument
-                  ? raw
-                  : null;
-          return InAppDocumentSnapshot(docId, doc);
-        } else {
-          return const InAppErrorSnapshot("Type isn't valid!");
-        }
-      } else {
-        return const InAppFailureSnapshot("Data not found!");
-      }
-    });
+  }) async {
+    try {
+      return _execute(() {
+        final ref = _version.ref(collectionPath);
+        return _delegate.read(_name, ref).then((raw) {
+          final value = raw is String ? jsonDecode(raw) : raw;
+          if (value is Map) {
+            if (type.isCollection) {
+              final data = value.entries
+                  .map((e) {
+                    final x = e.value;
+                    final y = x is String ? jsonDecode(x) : x;
+                    final z = y is InAppDocument ? y : null;
+                    return InAppDocumentSnapshot(e.key, z);
+                  })
+                  .where((i) => i.data != null && i.data!.isNotEmpty)
+                  .toList();
+              return InAppQuerySnapshot(collectionId, data);
+            } else if (type.isDocument) {
+              final docId = documentId;
+              final raw = value[docId];
+              final doc = raw is String
+                  ? jsonDecode(raw)
+                  : raw is InAppDocument
+                      ? raw
+                      : null;
+              return InAppDocumentSnapshot(docId, doc);
+            } else {
+              return const InAppErrorSnapshot("Type isn't valid!");
+            }
+          } else {
+            return const InAppFailureSnapshot("Data not found!");
+          }
+        });
+      });
+    } catch (msg) {
+      return InAppFailureSnapshot(msg.toString());
+    }
   }
 
   Future<bool> _w({
@@ -279,39 +351,45 @@ class InAppDatabase extends ChangeNotifier {
     required String collectionId,
     required String documentId,
     InAppDocument? value,
-  }) {
-    final ref = _version.ref(collectionPath);
-    return _delegate.read(_name, ref).then((root) {
-      final raw = root is String ? jsonDecode(root) : root;
-      final base = raw is Map ? raw : {};
-      if (type.isDocument) {
-        final data = value == null ? null : jsonEncode(value);
-        final id = documentId;
-        if (data != null) {
-          base[id] = data;
-        } else {
-          base.remove(id);
-        }
-      } else if (type.isCollection) {
-        if (value != null) {
-          for (var i in value.entries) {
-            final id = i.key;
-            final value = i.value;
+  }) async {
+    try {
+      return _execute(() {
+        final ref = _version.ref(collectionPath);
+        return _delegate.read(_name, ref).then((root) {
+          final raw = root is String ? jsonDecode(root) : root;
+          final base = raw is Map ? raw : {};
+          if (type.isDocument) {
             final data = value == null ? null : jsonEncode(value);
+            final id = documentId;
             if (data != null) {
               base[id] = data;
             } else {
               base.remove(id);
             }
+          } else if (type.isCollection) {
+            if (value != null) {
+              for (var i in value.entries) {
+                final id = i.key;
+                final value = i.value;
+                final data = value == null ? null : jsonEncode(value);
+                if (data != null) {
+                  base[id] = data;
+                } else {
+                  base.remove(id);
+                }
+              }
+            } else {
+              base.clear();
+            }
           }
-        } else {
-          base.clear();
-        }
-      }
-      return _wb(collectionPath, base).then((value) {
-        return _delegate.write(_name, ref, value);
+          return _wb(collectionPath, base).then((value) {
+            return _delegate.write(_name, ref, value);
+          });
+        });
       });
-    });
+    } catch (msg) {
+      return false;
+    }
   }
 
   Future<String?> _wb(String path, Map base) async {
@@ -344,6 +422,10 @@ class InAppDatabase extends ChangeNotifier {
     for (var value in _notifiers.values) {
       value.dispose();
     }
+    initializing.dispose();
+    activating.dispose();
+    creating.dispose();
+    deleting.dispose();
     _notifiers.clear();
     _databases.clear();
     _log("disposed!");

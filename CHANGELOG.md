@@ -1,3 +1,8 @@
+## 1.3.3
+
+* Improve lazy caller to fetch data smoothly
+* Add loading systems [initializing, activating, creating, deleting etc]
+
 ## 1.3.2
 
 * Improve database

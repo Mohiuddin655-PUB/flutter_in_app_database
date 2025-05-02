@@ -1,7 +1,7 @@
 import '../in_app_database.dart';
 
 abstract class InAppDatabaseDelegate {
-  Future<void> init(String dbName);
+  Future<bool> init(String dbName);
 
   Future<bool> delete(String dbName, String path);
 

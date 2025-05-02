@@ -8,8 +8,9 @@ Map<String, Map<String, dynamic>> databases = {};
 
 class DatabaseDelegate extends InAppDatabaseDelegate {
   @override
-  Future<void> init(String dbName) async {
+  Future<bool> init(String dbName) async {
     databases[dbName] = {};
+    return true;
   }
 
   @override
