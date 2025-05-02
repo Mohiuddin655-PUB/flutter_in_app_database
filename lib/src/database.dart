@@ -21,26 +21,29 @@ part 'reference.dart';
 part 'snapshots.dart';
 part 'version.dart';
 
+enum InAppDatabaseType { json, map }
+
 class InAppDatabase extends ChangeNotifier {
   String _name;
   final bool showLogs;
   final InAppDatabaseDelegate _delegate;
+  final InAppDatabaseType _type;
   final Map<String, _InAppNotifier> _notifiers = {};
   InAppDatabaseVersion _version;
 
   String get name => _name == _defaultName ? "default" : _name;
 
-  String get version => _version.code;
+  String get versionCode => _version.code;
 
-  set version(String code) => _version = InAppDatabaseVersion.custom(code);
+  set versionCode(String code) => version(InAppDatabaseVersion.custom(code));
 
-  String get ref => _version.ref();
+  String get ref => _version._ref();
 
   Future<List<String>> get keys async {
     final paths = await _delegate.paths(_name);
     return paths
         .where((e) {
-          if (version == InAppDatabaseVersion.v1.code) return true;
+          if (versionCode == InAppDatabaseVersion.v1.code) return true;
           return e.startsWith(ref);
         })
         .map((e) {
@@ -79,6 +82,12 @@ class InAppDatabase extends ChangeNotifier {
 
   static String _defaultName = '__in_app_database__';
 
+  static InAppDatabaseVersion _defaultVersion = InAppDatabaseVersion.v1;
+
+  static bool get isDefault => i._name == _defaultName;
+
+  static bool get isDefaultVersion => i.versionCode == _defaultVersion.code;
+
   static final Map<String, bool> _databases = {};
 
   static List<String> get databases => _databases.keys.toList();
@@ -86,11 +95,13 @@ class InAppDatabase extends ChangeNotifier {
   static bool isInitializedAs(String name) => _databases[name] ?? false;
 
   InAppDatabase._({
-    required String name,
     this.showLogs = false,
+    required String name,
+    InAppDatabaseType? type,
     InAppDatabaseVersion? version,
     required InAppDatabaseDelegate delegate,
   })  : _name = name,
+        _type = type ?? InAppDatabaseType.json,
         _version = version ?? InAppDatabaseVersion.v1,
         _delegate = delegate;
 
@@ -99,15 +110,18 @@ class InAppDatabase extends ChangeNotifier {
   static Future<bool> init({
     String? name,
     bool showLogs = false,
+    InAppDatabaseType? type,
     InAppDatabaseVersion? version,
     required InAppDatabaseDelegate delegate,
   }) async {
     try {
       _defaultName = name ?? _defaultName;
+      _defaultVersion = version ?? _defaultVersion;
       _i = InAppDatabase._(
         name: _defaultName,
+        type: type,
+        version: _defaultVersion,
         showLogs: showLogs,
-        version: version,
         delegate: delegate,
       );
       i.initializing.value = true;
@@ -150,6 +164,24 @@ class InAppDatabase extends ChangeNotifier {
       return true;
     } catch (msg) {
       i.activating.value = false;
+      i._log(msg);
+      rethrow;
+    }
+  }
+
+  static bool version([InAppDatabaseVersion? version]) {
+    try {
+      if (!i.isInitialized) {
+        throw "InAppDatabase(${i.name}) not initialized yet!";
+      }
+      version ??= _defaultVersion;
+      i._version = version;
+      i._log(
+        "$InAppDatabase(${i.name}) version changed, currently activated version is ${version.code}.",
+      );
+      i.notifyListeners();
+      return true;
+    } catch (msg) {
       i._log(msg);
       rethrow;
     }
@@ -210,7 +242,7 @@ class InAppDatabase extends ChangeNotifier {
   }
 
   InAppQueryReference collection(String field) {
-    final reference = _version.ref(field);
+    final reference = _version._ref(field);
     return InAppQueryReference(
       db: this,
       reference: reference,
@@ -261,7 +293,7 @@ class InAppDatabase extends ChangeNotifier {
     bool related = true,
     Iterable<String> Function(String path, Iterable<String>)? filter,
   }) async {
-    final ref = _version.ref(collectionPath);
+    final ref = _version._ref(collectionPath);
     try {
       return _execute(() async {
         if (!related) return _delegate.delete(_name, ref);
@@ -289,7 +321,7 @@ class InAppDatabase extends ChangeNotifier {
     try {
       return _execute(() async {
         final paths = await _delegate.paths(_name);
-        final ref = _version.ref(path);
+        final ref = _version._ref(path);
         final children = paths.where((key) => key.startsWith(ref)).toList();
         return children;
       });
@@ -307,7 +339,7 @@ class InAppDatabase extends ChangeNotifier {
   }) async {
     try {
       return _execute(() {
-        final ref = _version.ref(collectionPath);
+        final ref = _version._ref(collectionPath);
         return _delegate.read(_name, ref).then((raw) {
           final value = raw is String ? jsonDecode(raw) : raw;
           if (value is Map) {
@@ -344,6 +376,20 @@ class InAppDatabase extends ChangeNotifier {
     }
   }
 
+  Future<Object?> _wb(String path, Map base, bool isJson) async {
+    if (base.isEmpty) return null;
+    final l = await _delegate.limitation(_name, PathModifier.format(path));
+    if (l == null || l.limit <= 0) return isJson ? jsonEncode(base) : base;
+    final limit = l.limit;
+    final entries = base.entries;
+    if (entries.length <= limit) return isJson ? jsonEncode(base) : base;
+    final x = l.limitByRecent
+        ? List.of(entries).reversed.take(limit)
+        : entries.take(limit);
+    final data = Map.fromEntries(x);
+    return isJson ? jsonEncode(data) : data;
+  }
+
   Future<bool> _w({
     required InAppWriteType type,
     required String reference,
@@ -353,16 +399,22 @@ class InAppDatabase extends ChangeNotifier {
     InAppDocument? value,
   }) async {
     try {
+      final isJson = _type == InAppDatabaseType.json;
       return _execute(() {
-        final ref = _version.ref(collectionPath);
+        final ref = _version._ref(collectionPath);
         return _delegate.read(_name, ref).then((root) {
           final raw = root is String ? jsonDecode(root) : root;
           final base = raw is Map ? raw : {};
           if (type.isDocument) {
-            final data = value == null ? null : jsonEncode(value);
+            final data = value != null
+                ? Map.fromEntries(value.entries.map((e) {
+                    if (e.value is! Object) return null;
+                    return MapEntry(e.key, e.value as Object);
+                  }).whereType<MapEntry<String, Object>>())
+                : <String, Object>{};
             final id = documentId;
-            if (data != null) {
-              base[id] = data;
+            if (data.isNotEmpty) {
+              base[id] = isJson ? jsonEncode(data) : data;
             } else {
               base.remove(id);
             }
@@ -382,7 +434,7 @@ class InAppDatabase extends ChangeNotifier {
               base.clear();
             }
           }
-          return _wb(collectionPath, base).then((value) {
+          return _wb(collectionPath, base, isJson).then((value) {
             return _delegate.write(_name, ref, value);
           });
         });
@@ -390,31 +442,6 @@ class InAppDatabase extends ChangeNotifier {
     } catch (msg) {
       return false;
     }
-  }
-
-  Future<String?> _wb(String path, Map base) async {
-    String? body;
-    if (base.isNotEmpty) {
-      final limitation = await _delegate.limitation(
-        _name,
-        PathModifier.format(path),
-      );
-      if (limitation != null && limitation.limit > 0) {
-        final limit = limitation.limit;
-        final entries = base.entries;
-        if (entries.length > limit) {
-          final x = limitation.limitByRecent
-              ? List.of(entries).reversed.take(limit)
-              : entries.take(limit);
-          body = jsonEncode(Map.fromEntries(x));
-        } else {
-          body = jsonEncode(base);
-        }
-      } else {
-        body = jsonEncode(base);
-      }
-    }
-    return body;
   }
 
   @override

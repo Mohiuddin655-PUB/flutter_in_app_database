@@ -2,6 +2,8 @@
 
 * Improve lazy caller to fetch data smoothly
 * Add loading systems [initializing, activating, creating, deleting etc]
+* Add database version switching system
+* Add database data type [json, map]
 
 ## 1.3.2
 

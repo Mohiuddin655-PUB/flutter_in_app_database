@@ -9,9 +9,9 @@ abstract class InAppReference {
     required InAppDatabase db,
   }) : _db = db;
 
-  String get _id => _db._version.documentId;
+  String get _id => _db._version._id;
 
-  String get _idField => _db._version.documentIdRef;
+  String get _idField => _db._version._idRef;
 
   String get _idFieldSecondary => "_id";
 }

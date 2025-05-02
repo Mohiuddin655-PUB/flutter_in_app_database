@@ -11,7 +11,7 @@ abstract class InAppDatabaseDelegate {
 
   Future<Object?> read(String dbName, String path);
 
-  Future<bool> write(String dbName, String path, String? data);
+  Future<bool> write(String dbName, String path, Object? data);
 
   Future<InAppWriteLimitation?> limitation(String dbName, PathDetails details);
 }

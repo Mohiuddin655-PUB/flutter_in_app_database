@@ -1,21 +1,22 @@
 import 'dart:async';
+import 'dart:developer';
 
 import 'package:flutter/material.dart';
 import 'package:in_app_database/in_app_database.dart';
 import 'package:in_app_faker/in_app_faker.dart';
 
-Map<String, Map<String, dynamic>> databases = {};
+Map<String, Map> databases = {};
 
 class DatabaseDelegate extends InAppDatabaseDelegate {
   @override
   Future<bool> init(String dbName) async {
-    databases[dbName] = {};
+    databases[dbName] = databases[dbName] ??= {};
     return true;
   }
 
   @override
   Future<Iterable<String>> paths(String dbName) async {
-    final x = databases[dbName]!.keys.toList();
+    final x = databases[dbName]!.keys.whereType<String>().toList();
     return x;
   }
 
@@ -37,7 +38,7 @@ class DatabaseDelegate extends InAppDatabaseDelegate {
   }
 
   @override
-  Future<bool> write(String dbName, String key, String? value) async {
+  Future<bool> write(String dbName, String key, Object? value) async {
     if (value != null) {
       databases[dbName]![key] = value;
       return true;
@@ -62,16 +63,33 @@ class DatabaseDelegate extends InAppDatabaseDelegate {
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  InAppDatabase.init(
-    showLogs: true, // optional
-    version: InAppDatabaseVersion.v2, // optional
-    delegate: DatabaseDelegate(), // required
-  );
   runApp(const MyApp());
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  @override
+  void initState() {
+    super.initState();
+    InAppDatabase.init(
+      showLogs: true, // optional
+      type: InAppDatabaseType.json, // optional
+      version: InAppDatabaseVersion.v1, // optional
+      delegate: DatabaseDelegate(), // required
+    );
+    InAppDatabase.i.collection("users").get().then((value) {
+      log("USERS: $value");
+    });
+    InAppDatabase.i.collection("users").snapshots().listen((value) {
+      log("USER_SNAPSHOTS: $value");
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -102,7 +120,9 @@ class _HomeState extends State<Home> {
       builder: (context, child) {
         return Scaffold(
           appBar: AppBar(
-            title: Text(InAppDatabase.i.name),
+            title: Text(
+              "${InAppDatabase.i.name} (${InAppDatabase.i.versionCode})",
+            ),
             centerTitle: true,
           ),
           body: SafeArea(
@@ -214,23 +234,34 @@ class _HomeState extends State<Home> {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Button(
-                text: "Create MyDatabase",
+                text: "Create DB (MyDatabase)",
                 onClick: () {
                   InAppDatabase.create("MyDatabase");
                 },
               ),
               Button(
-                text: "Drop MyDatabase",
+                text: "Drop DB (MyDatabase)",
                 onClick: () {
                   InAppDatabase.delete("MyDatabase");
                 },
               ),
               Button(
                 text:
-                    "Switch ${InAppDatabase.i.name == "default" ? "MyDatabase" : "default"}",
+                    "Switch DB (${InAppDatabase.isDefault ? "MyDatabase" : "default"})",
                 onClick: () {
                   InAppDatabase.activate(
-                    InAppDatabase.i.name == "MyDatabase" ? null : "MyDatabase",
+                    InAppDatabase.isDefault ? "MyDatabase" : null,
+                  );
+                },
+              ),
+              Button(
+                text:
+                    "Switch DB Version (${InAppDatabase.isDefaultVersion ? "v2" : "v1"})",
+                onClick: () {
+                  InAppDatabase.version(
+                    InAppDatabase.isDefaultVersion
+                        ? InAppDatabaseVersion.custom("v2")
+                        : null, // as default version
                   );
                 },
               ),
@@ -264,6 +295,12 @@ class _HomeState extends State<Home> {
                         DateTime.now().millisecondsSinceEpoch.toString(),
                   });
                 },
+              ),
+              Button(
+                text: "Clear",
+                onClick: () => InAppDatabase.i.collection("users").delete(
+                      notifiable: true,
+                    ),
               ),
               Button(
                 text: "Drop",
