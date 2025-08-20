@@ -243,7 +243,7 @@ class InAppDatabase extends ChangeNotifier {
     }
   }
 
-  InAppWriteBatch batch() => InAppWriteBatch.instanceOf(this);
+  InAppWriteBatch batch() => InAppWriteBatch();
 
   InAppQueryReference collection(String field) {
     final reference = _version._ref(field);

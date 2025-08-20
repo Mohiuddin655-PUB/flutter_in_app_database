@@ -1,3 +1,7 @@
+## 1.3.5
+
+* Improve Batch params
+
 ## 1.3.4
 
 * Path wise doc reference system support

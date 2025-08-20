@@ -5,68 +5,67 @@ enum _BatchOperationType { set, update, delete }
 /// Internal operation details
 class _BatchOperation {
   final _BatchOperationType type;
-  final String path;
+  final InAppDocumentReference document;
   final Map<String, dynamic>? data;
   final InAppSetOptions? options;
 
   _BatchOperation({
     required this.type,
-    required this.path,
+    required this.document,
     this.data,
     this.options,
   });
 }
 
 class InAppWriteBatch {
-  final InAppDatabase _db;
-  final List<_BatchOperation> _operations = [];
+  InAppWriteBatch();
 
-  InAppWriteBatch.instanceOf(this._db);
+  final List<_BatchOperation> _operations = [];
 
   /// Add a `set` operation
   void set(
-    String docPath,
-    Map<String, dynamic> data, {
-    InAppSetOptions options = const InAppSetOptions(),
-  }) {
+    InAppDocumentReference document,
+    Object data, [
+    InAppSetOptions? options,
+  ]) {
+    if (data is! Map<String, dynamic>) return;
     _operations.add(_BatchOperation(
       type: _BatchOperationType.set,
-      path: docPath,
+      document: document,
       data: data,
       options: options,
     ));
   }
 
   /// Add an `update` operation
-  void update(String docPath, Map<String, dynamic> data) {
+  void update(InAppDocumentReference document, Map<String, dynamic> data) {
     _operations.add(_BatchOperation(
       type: _BatchOperationType.update,
-      path: docPath,
+      document: document,
       data: data,
     ));
   }
 
   /// Add a `delete` operation
-  void delete(String docPath) {
+  void delete(InAppDocumentReference document) {
     _operations.add(_BatchOperation(
       type: _BatchOperationType.delete,
-      path: docPath,
+      document: document,
     ));
   }
 
   /// Execute all operations directly (not as Firestore batch)
   Future<void> commit() async {
     for (final op in _operations) {
-      final ref = _db.doc(op.path);
       switch (op.type) {
         case _BatchOperationType.set:
-          await ref.set(op.data!, op.options!);
+          await op.document.set(op.data!, op.options!);
           break;
         case _BatchOperationType.update:
-          await ref.update(op.data!);
+          await op.document.update(op.data!);
           break;
         case _BatchOperationType.delete:
-          await ref.delete();
+          await op.document.delete();
           break;
       }
     }
