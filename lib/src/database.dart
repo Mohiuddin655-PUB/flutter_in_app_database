@@ -8,7 +8,9 @@ import 'package:in_app_query/in_app_query.dart';
 import '../core/field_value.dart';
 import '../core/paging_options.dart';
 import '../core/path.dart';
+import 'batch.dart';
 import 'delegate.dart';
+import 'pointer.dart';
 
 part 'base.dart';
 part 'collection.dart';
@@ -241,6 +243,8 @@ class InAppDatabase extends ChangeNotifier {
     }
   }
 
+  InAppWriteBatch batch() => InAppWriteBatch.instanceOf(this);
+
   InAppQueryReference collection(String field) {
     final reference = _version._ref(field);
     return InAppQueryReference(
@@ -249,6 +253,29 @@ class InAppDatabase extends ChangeNotifier {
       path: field,
       id: field,
     );
+  }
+
+  InAppDocumentReference doc(String documentPath) {
+    final pointer = InAppPointer(documentPath);
+    if (documentPath.isEmpty) {
+      throw ArgumentError('A document path must be a non-empty string.');
+    } else if (documentPath.contains('//')) {
+      throw ArgumentError('A document path must not contain "//".');
+    } else if (!pointer.isDocument()) {
+      throw ArgumentError('A document path must point to a valid document.');
+    }
+    final parts = List.of(pointer.components);
+    InAppReference ref = collection(parts.first);
+    parts.removeAt(0);
+    ref = parts.fold(ref, (ref, field) {
+      if (ref is InAppCollectionReference) {
+        return ref.doc(field);
+      } else if (ref is InAppDocumentReference) {
+        return ref.collection(field);
+      }
+      return ref;
+    });
+    return ref as InAppDocumentReference;
   }
 
   InAppQueryNotifier _addNotifier(

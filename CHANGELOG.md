@@ -1,3 +1,8 @@
+## 1.3.4
+
+* Path wise doc reference system support
+* Batch system support to manage multiple [set, update, delete] operations
+
 ## 1.3.3
 
 * Improve lazy caller to fetch data smoothly

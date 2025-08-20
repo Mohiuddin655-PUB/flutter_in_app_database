@@ -10,5 +10,7 @@ export 'core/path.dart';
 export 'core/query.dart';
 export 'core/selection.dart';
 export 'core/sort.dart';
+export 'src/batch.dart';
 export 'src/database.dart';
 export 'src/delegate.dart';
+export 'src/pointer.dart';
