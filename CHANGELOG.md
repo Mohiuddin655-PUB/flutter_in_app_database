@@ -1,3 +1,7 @@
+## 1.3.6
+
+* Improve query
+
 ## 1.3.5
 
 * Improve Batch params
