@@ -73,7 +73,7 @@ packages:
       path: ".."
       relative: true
     source: path
-    version: "1.3.7"
+    version: "1.3.8"
   in_app_faker:
     dependency: "direct main"
     description:
@@ -86,10 +86,10 @@ packages:
     dependency: transitive
     description:
       name: in_app_query
-      sha256: "6fd0c94961ec0091a6847908f34f63e948c43e909dc3247e1fb2000c37f61591"
+      sha256: "81b74eba78654ff8006c008cc69feaa84ddde6a1ce62361172f56de312310342"
       url: "https://pub.dev"
     source: hosted
-    version: "1.0.5"
+    version: "1.0.6"
   leak_tracker:
     dependency: transitive
     description:
