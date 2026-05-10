@@ -5,186 +5,221 @@ class InAppDocumentReference extends InAppReference {
   final InAppCollectionReference _p;
 
   const InAppDocumentReference({
-    required super.reference,
+    required super.ref,
     required super.db,
     required this.id,
     required InAppCollectionReference parent,
   }) : _p = parent;
 
-  String get path => "${_p.path}/$id";
+  String get path => '${_p.path}/$id';
+
+  InAppCollectionReference get parent => _p;
 
   InAppQueryNotifier? get _cn {
-    final x = _db._notifiers[_p.path];
-    return x is InAppQueryNotifier ? x : null;
+    final n = _db._notifiers[_p.path];
+    return n is InAppQueryNotifier ? n : null;
   }
 
   InAppDocumentNotifier? get _dn => _cn?.children[id];
 
   T _n<T>(T value, [InAppDocumentSnapshot? snapshot]) {
-    if (_cn != null) _p._notify();
-    if (_dn != null) {
+    final cn = _cn;
+    if (cn != null && !cn.isDisposed) _p._notify();
+    final dn = _dn;
+    if (dn != null && !dn.isDisposed) {
       if (snapshot == null) {
-        get().then((value) => _dn!.value = value);
+        get().then((s) {
+          if (!dn.isDisposed) dn.value = s;
+        }).catchError((_) {});
       } else {
-        _dn!.value = snapshot;
+        dn.value = snapshot;
       }
     }
     return value;
   }
 
-  void _notify([InAppDocumentSnapshot? snapshot]) => _n(null, snapshot);
-
   InAppQueryReference collection(String field) {
+    if (field.isEmpty) {
+      throw ArgumentError.value(
+        field,
+        'field',
+        'Collection id cannot be empty.',
+      );
+    }
+    if (field.contains('/')) {
+      throw ArgumentError.value(
+        field,
+        'field',
+        'Collection id cannot contain "/".',
+      );
+    }
     return InAppQueryReference(
       db: _db,
-      reference: "$reference/$field",
-      path: "$path/$field",
+      ref: '$ref/$field',
+      path: '$path/$field',
       id: field,
+      parent: this,
     );
   }
 
-  /// Method to set data in the document.
-  ///
-  /// Parameters:
-  /// - [data]: The data to be set in the document.
-  ///
-  /// Example:
-  /// ```dart
-  /// documentRef.set({'name': 'John', 'age': 30});
-  /// ```
-  Future<InAppDocumentSnapshot?> set(
+  Future<void> set(
     InAppDocument data, [
-    InAppSetOptions options = const InAppSetOptions(),
-  ]) {
-    final i = data[_idField];
-    final mId = i is String ? i : id;
-    data[_idField] = mId;
-    if (options.merge) {
-      return update(data);
-    } else {
-      return _db
-          ._w(
-            reference: reference,
-            collectionPath: _p.path,
-            collectionId: _p.id,
-            documentId: mId,
-            type: InAppWriteType.document,
-            value: data,
-          )
-          .then(_n)
-          .then((value) {
-        _db._log(value ? "done!" : "failed!", action: "set", field: id);
-        return value;
-      }).then((value) => value ? InAppDocumentSnapshot(mId, data) : null);
+    InAppSetOptions options = InAppSetOptions.defaults,
+  ]) async {
+    final raw = data[_idField];
+    final mId = raw is String && raw.isNotEmpty ? raw : id;
+    final payload = Map<String, InAppValue>.of(data);
+    payload[_idField] = mId;
+
+    if (options.isMerge) {
+      await update(payload, onlyFields: options.mergeFields);
+      return;
+    }
+
+    final ok = await _db._w(
+      reference: ref,
+      collectionPath: _p.path,
+      collectionId: _p.id,
+      documentId: mId,
+      type: InAppWriteType.document,
+      value: payload,
+    );
+    final snap = ok ? InAppDocumentSnapshot(mId, payload, this) : null;
+    _n<void>(null, snap);
+    _db._log(ok ? 'done!' : 'failed!', action: 'set', field: id);
+    if (!ok) {
+      throw InAppDatabaseException(
+        'Failed to set document at "$path".',
+        code: 'set-failed',
+      );
     }
   }
 
-  /// Method to update data in the document.
-  ///
-  /// Parameters:
-  /// - [data]: The data to be updated in the document.
-  ///
-  /// Example:
-  /// ```dart
-  /// documentRef.update({
-  ///     'name': Mr. X,
-  ///     'age': InAppFieldValue.increment(2),
-  ///     'balance': InAppFieldValue.increment(-10.2),
-  ///     'hobbies': InAppFieldValue.arrayUnion(['swimming']),
-  ///     'skills': InAppFieldValue.arrayRemove(['coding', 'gaming']),
-  ///     'timestamp': InAppFieldValue.serverTimestamp(),
-  ///     'extra': InAppFieldValue.delete(),
-  ///   });
-  /// ```
-  Future<InAppDocumentSnapshot?> update(InAppDocument data) {
-    return get().then((base) {
-      final current = InAppMerger(base.data).merge(data);
-      current[_idField] = id;
-      return _db
-          ._w(
-            reference: reference,
-            collectionPath: _p.path,
-            collectionId: _p.id,
-            documentId: id,
-            type: InAppWriteType.document,
-            value: current,
-          )
-          .then(_n)
-          .then((value) {
-        _db._log(value ? "done!" : "failed!", action: "update", field: id);
-        return value;
-      }).then((value) => value ? InAppDocumentSnapshot(_id, current) : null);
+  Future<void> update(InAppDocument data, {List<Object>? onlyFields}) async {
+    Set<String>? onlySet;
+    if (onlyFields != null) {
+      onlySet = <String>{};
+      for (final f in onlyFields) {
+        if (f is String) {
+          onlySet.add(f);
+        } else if (f is InAppFieldPath) {
+          if (f.isDocumentId) continue;
+          onlySet.add(f.segments.join('.'));
+        }
+      }
+    }
+
+    InAppDocument? merged;
+    final ok = await _db._serial(_p.path, () async {
+      final base = await get();
+      final m = InAppMerger(base.data()).merge(data, onlyFields: onlySet);
+      m[_idField] = id;
+      merged = m;
+      return _db._wInner(
+        reference: ref,
+        collectionPath: _p.path,
+        collectionId: _p.id,
+        documentId: id,
+        type: InAppWriteType.document,
+        value: m,
+      );
     });
+
+    final snap =
+        (ok && merged != null) ? InAppDocumentSnapshot(id, merged, this) : null;
+    _n<void>(null, snap);
+    _db._log(ok ? 'done!' : 'failed!', action: 'update', field: id);
+    if (!ok) {
+      throw InAppDatabaseException(
+        'Failed to update document at "$path".',
+        code: 'update-failed',
+      );
+    }
   }
 
-  /// Method to delete the document.
-  ///
-  /// Example:
-  /// ```dart
-  /// documentRef.delete();
-  /// ```
-  Future<bool> delete() {
-    return _db
-        ._w(
-          reference: reference,
+  Future<void> delete() async {
+    final ok = await _db._serial(_p.path, () async {
+      final r = await _db._wInner(
+        reference: ref,
+        collectionPath: _p.path,
+        collectionId: _p.id,
+        documentId: id,
+        type: InAppWriteType.document,
+      );
+      if (r) {
+        final remaining = await _db._r(
+          reference: _p.ref,
           collectionPath: _p.path,
           collectionId: _p.id,
-          documentId: id,
-          type: InAppWriteType.document,
-        )
-        .then<bool>((value) {
-          if (value) {
-            return _p.get().then((value) {
-              if (!value.exists) {
-                return _db._w(
-                  type: InAppWriteType.collection,
-                  reference: _p.reference,
-                  collectionPath: _p.path,
-                  collectionId: _p.id,
-                  documentId: _p.id,
-                );
-              } else {
-                return true;
-              }
-            });
-          } else {
-            return value;
-          }
-        })
-        .then(_n)
-        .then((value) {
-          _db._log(value ? "done!" : "failed!", action: "delete", field: id);
-          return value;
-        });
+          documentId: _p.id,
+          type: InAppReadType.collection,
+        );
+        if (remaining is InAppQuerySnapshot && remaining.isEmpty) {
+          await _db._wInner(
+            type: InAppWriteType.collection,
+            reference: _p.ref,
+            collectionPath: _p.path,
+            collectionId: _p.id,
+            documentId: _p.id,
+          );
+        }
+      }
+      return r;
+    });
+    _n<void>(null, null);
+    _db._log(ok ? 'done!' : 'failed!', action: 'delete', field: id);
+    if (!ok) {
+      throw InAppDatabaseException(
+        'Failed to delete document at "$path".',
+        code: 'delete-failed',
+      );
+    }
   }
 
-  /// Method to get all data in the document.
-  ///
-  /// Example:
-  /// ```dart
-  /// Data documentData = documentRef.get();
-  /// ```
-  Future<InAppDocumentSnapshot> get() {
-    return _db
-        ._r(
-      reference: reference,
+  Future<InAppDocumentSnapshot> get([
+    InAppSource source = InAppSource.cache,
+  ]) async {
+    final result = await _db._r(
+      reference: ref,
       collectionPath: _p.path,
       collectionId: _p.id,
       documentId: id,
       type: InAppReadType.document,
-    )
-        .then((value) {
-      return value is InAppDocumentSnapshot ? value : InAppDocumentSnapshot(id);
-    });
+    );
+    if (result is InAppDocumentSnapshot) {
+      return result.copy(reference: this);
+    }
+    return InAppDocumentSnapshot(id, null, this);
   }
 
-  Stream<InAppDocumentSnapshot> snapshots() {
+  Stream<InAppDocumentSnapshot> snapshots({
+    bool includeMetadataChanges = false,
+  }) {
     final n = _db._addChildNotifier(_p.path, id);
-    return Stream.multi((c) {
-      void update() => c.add(n.value ?? InAppDocumentSnapshot(id));
-      n.addListener(update);
-      c.onCancel = () => n.removeListener(update);
-      _notify();
+    return Stream<InAppDocumentSnapshot>.multi((controller) {
+      InAppDocumentSnapshot? last;
+      void emit(InAppDocumentSnapshot snap) {
+        if (controller.isClosed) return;
+        if (last == snap) return;
+        last = snap;
+        controller.add(snap);
+      }
+
+      void listener() => emit(n.value ?? InAppDocumentSnapshot(id, null, this));
+
+      n.addListener(listener);
+      controller.onCancel = () {
+        n.removeListener(listener);
+        _db._maybeCleanupChild(_p.path, id);
+      };
+
+      Future<void>(() async {
+        try {
+          final s = await get();
+          if (!controller.isClosed) emit(s);
+          if (!n.isDisposed) n.value = s;
+        } catch (_) {}
+      });
     });
   }
 }

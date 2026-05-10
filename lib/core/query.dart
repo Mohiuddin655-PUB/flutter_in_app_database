@@ -1,6 +1,6 @@
-import 'package:in_app_query/in_app_query.dart';
+import 'package:in_app_query/in_app_query.dart' show Filter, Query;
 
-import 'field_path.dart';
+import 'field_path.dart' show InAppFieldPath;
 
 class InAppQuery extends Query {
   const InAppQuery(

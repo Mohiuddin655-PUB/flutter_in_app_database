@@ -1,7 +1,7 @@
-import 'package:in_app_query/in_app_query.dart';
+import 'package:in_app_query/in_app_query.dart' show Filter;
 
 class InAppFilter extends Filter {
-  InAppFilter(
+  const InAppFilter(
     super.field, {
     super.isEqualTo,
     super.isNotEqualTo,

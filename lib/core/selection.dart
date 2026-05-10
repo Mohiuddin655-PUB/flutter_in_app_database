@@ -1,7 +1,7 @@
-import 'package:in_app_query/in_app_query.dart';
+import 'package:in_app_query/in_app_query.dart' show Selection;
 
 class InAppSelection extends Selection {
-  InAppSelection.empty() : super.empty();
+  const InAppSelection.empty() : super.empty();
 
   const InAppSelection.from(Object super.snapshot, super.type) : super.from();
 

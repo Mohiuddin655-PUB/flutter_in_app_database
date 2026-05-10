@@ -5,47 +5,55 @@ class InAppQueryReference extends InAppCollectionReference {
   final List<Selection> _s;
   final List<Sorting> _o;
   final InAppPagingOptions _op;
-  final bool _cm;
 
   const InAppQueryReference({
     required super.db,
-    required super.reference,
+    required super.ref,
     required super.path,
     required super.id,
+    super.parent,
     List<Query> queries = const [],
     List<Selection> selections = const [],
     List<Sorting> sorts = const [],
     InAppPagingOptions options = const InAppPagingOptions(),
-    bool counterMode = false,
   })  : _q = queries,
         _s = selections,
         _o = sorts,
-        _op = options,
-        _cm = counterMode;
+        _op = options;
 
-  InAppCounterReference count() {
-    return InAppCounterReference(
+  InAppQueryReference _copyWith({
+    List<Query>? queries,
+    List<Selection>? selections,
+    List<Sorting>? sorts,
+    InAppPagingOptions? options,
+  }) {
+    return InAppQueryReference(
       db: _db,
-      reference: reference,
-      parent: this,
+      ref: ref,
+      path: path,
+      id: id,
+      parent: _parent,
+      queries: queries ?? _q,
+      selections: selections ?? _s,
+      sorts: sorts ?? _o,
+      options: options ?? _op,
     );
   }
 
+  InAppAggregateQuery count() {
+    return InAppAggregateQuery(db: _db, ref: ref, parent: this);
+  }
+
   InAppQueryReference _limit(int limit, [bool fetchFromLast = false]) {
-    return InAppQueryReference(
-      db: _db,
-      reference: reference,
-      path: path,
-      id: id,
-      queries: _q,
-      selections: _s,
-      sorts: _o,
+    if (limit <= 0) {
+      throw ArgumentError.value(limit, 'limit', 'must be > 0');
+    }
+    return _copyWith(
       options: _op.copy(
         initialSize: limit,
         fetchingSize: limit,
         fetchFromLast: fetchFromLast,
       ),
-      counterMode: _cm,
     );
   }
 
@@ -53,43 +61,33 @@ class InAppQueryReference extends InAppCollectionReference {
 
   InAppQueryReference limitToLast(int limit) => _limit(limit, true);
 
-  InAppQueryReference orderBy(
-    Object field, {
-    bool descending = false,
-  }) {
-    List<Sorting> sorts = List.from(_o);
-    if (field is String) {
-      sorts.add(Sorting(field, descending: descending));
+  InAppQueryReference orderBy(Object field, {bool descending = false}) {
+    final fieldKey = _resolveField(field);
+    if (fieldKey == null || fieldKey.isEmpty) return this;
+    final sorts = List<Sorting>.of(_o)
+      ..add(Sorting(fieldKey, descending: descending));
+    return _copyWith(sorts: sorts);
+  }
+
+  String? _resolveField(Object field) {
+    if (field is String) return field;
+    if (field is InAppFieldPath) {
+      if (field.isDocumentId) return _idField;
+      return field.segments.join('.');
     }
-    return InAppQueryReference(
-      db: _db,
-      reference: reference,
-      path: path,
-      id: id,
-      queries: _q,
-      selections: _s,
-      sorts: sorts,
-      options: _op,
-      counterMode: _cm,
-    );
+    return null;
   }
 
   InAppQueryReference _selection(Object? snapshot, Selections type) {
-    List<Selection> selections = List.from(_s);
-    if (snapshot is InAppDocument || snapshot is Iterable<InAppValue>) {
-      selections.add(Selection.from(snapshot, type));
+    Object? value = snapshot;
+    if (snapshot is InAppDocumentSnapshot) {
+      value = snapshot.data();
     }
-    return InAppQueryReference(
-      db: _db,
-      reference: reference,
-      path: path,
-      id: id,
-      queries: _q,
-      selections: selections,
-      sorts: _o,
-      options: _op,
-      counterMode: _cm,
-    );
+    if (value is! InAppDocument && value is! Iterable<InAppValue>) {
+      return this;
+    }
+    final selections = List<Selection>.of(_s)..add(Selection.from(value, type));
+    return _copyWith(selections: selections);
   }
 
   InAppQueryReference where(
@@ -108,172 +106,173 @@ class InAppQueryReference extends InAppCollectionReference {
     Iterable<Object?>? whereNotIn,
     bool? isNull,
   }) {
-    List<Query> queries = List.from(_q);
-    queries.add(Query(
-      field,
-      isEqualTo: isEqualTo,
-      isNotEqualTo: isNotEqualTo,
-      isLessThan: isLessThan,
-      isLessThanOrEqualTo: isLessThanOrEqualTo,
-      isGreaterThan: isGreaterThan,
-      isGreaterThanOrEqualTo: isGreaterThanOrEqualTo,
-      arrayContains: arrayContains,
-      arrayNotContains: arrayNotContains,
-      arrayContainsAny: arrayContainsAny,
-      arrayNotContainsAny: arrayNotContainsAny,
-      whereIn: whereIn,
-      whereNotIn: whereNotIn,
-      isNull: isNull,
-    ));
-    return InAppQueryReference(
-      db: _db,
-      reference: reference,
-      path: path,
-      id: id,
-      queries: queries,
-      selections: _s,
-      sorts: _o,
-      options: _op,
-      counterMode: _cm,
-    );
+    final fieldKey = _resolveField(field) ?? '';
+    final queries = List<Query>.of(_q)
+      ..add(
+        Query(
+          fieldKey,
+          isEqualTo: isEqualTo,
+          isNotEqualTo: isNotEqualTo,
+          isLessThan: isLessThan,
+          isLessThanOrEqualTo: isLessThanOrEqualTo,
+          isGreaterThan: isGreaterThan,
+          isGreaterThanOrEqualTo: isGreaterThanOrEqualTo,
+          arrayContains: arrayContains,
+          arrayNotContains: arrayNotContains,
+          arrayContainsAny: arrayContainsAny,
+          arrayNotContainsAny: arrayNotContainsAny,
+          whereIn: whereIn,
+          whereNotIn: whereNotIn,
+          isNull: isNull,
+        ),
+      );
+    return _copyWith(queries: queries);
   }
 
-  InAppQueryReference endAtDocument(InAppValue? snapshot) {
-    return _selection(snapshot, Selections.endAtDocument);
-  }
+  InAppQueryReference endAtDocument(Object? snapshot) =>
+      _selection(snapshot, Selections.endAtDocument);
 
-  InAppQueryReference endAt(Iterable<InAppValue>? values) {
-    return _selection(values, Selections.endAt);
-  }
+  InAppQueryReference endAt(Iterable<InAppValue>? values) =>
+      _selection(values, Selections.endAt);
 
-  InAppQueryReference endBeforeDocument(InAppValue? snapshot) {
-    return _selection(snapshot, Selections.endBeforeDocument);
-  }
+  InAppQueryReference endBeforeDocument(Object? snapshot) =>
+      _selection(snapshot, Selections.endBeforeDocument);
 
-  InAppQueryReference endBefore(Iterable<InAppValue>? values) {
-    return _selection(values, Selections.endBefore);
-  }
+  InAppQueryReference endBefore(Iterable<InAppValue>? values) =>
+      _selection(values, Selections.endBefore);
 
-  InAppQueryReference startAfterDocument(InAppValue? snapshot) {
-    return _selection(snapshot, Selections.startAfterDocument);
-  }
+  InAppQueryReference startAfterDocument(Object? snapshot) =>
+      _selection(snapshot, Selections.startAfterDocument);
 
-  InAppQueryReference startAfter(Iterable<InAppValue>? values) {
-    return _selection(values, Selections.startAfter);
-  }
+  InAppQueryReference startAfter(Iterable<InAppValue>? values) =>
+      _selection(values, Selections.startAfter);
 
-  InAppQueryReference startAtDocument(InAppValue? snapshot) {
-    return _selection(snapshot, Selections.startAfterDocument);
-  }
+  InAppQueryReference startAtDocument(Object? snapshot) =>
+      _selection(snapshot, Selections.startAtDocument);
 
-  InAppQueryReference startAt(Iterable<InAppValue>? values) {
-    return _selection(values, Selections.startAt);
-  }
+  InAppQueryReference startAt(Iterable<InAppValue>? values) =>
+      _selection(values, Selections.startAt);
+
+  bool get _hasPipeline =>
+      _q.isNotEmpty || _o.isNotEmpty || _s.isNotEmpty || _op.hasLimit;
 
   @override
-  Future<InAppQuerySnapshot> get() {
-    final fetchingSize = _op.fetchingSize ?? 0;
-    final isQuery = _q.isNotEmpty;
-    final isSorting = _o.isNotEmpty;
-    final isSelections = _s.isNotEmpty;
-    final isLimit = fetchingSize > 0;
-    final sortingSize = _o.length;
-    if (isQuery || isSorting || isSelections || isLimit) {
-      return super.get().then((raw) {
-        final data = raw.docs.map((e) => e.data ?? {}).toList();
-        QueryBuilder builder = QueryBuilder(data);
-        if (isQuery) {
-          for (var i in _q) {
-            builder = builder.where(
-              i.field,
-              isEqualTo: i.isEqualTo,
-              isNotEqualTo: i.isNotEqualTo,
-              isNull: i.isNull,
-              isGreaterThan: i.isGreaterThan,
-              isGreaterThanOrEqualTo: i.isGreaterThanOrEqualTo,
-              isLessThan: i.isLessThan,
-              isLessThanOrEqualTo: i.isLessThanOrEqualTo,
-              whereIn: i.whereIn,
-              whereNotIn: i.whereNotIn,
-              arrayContains: i.arrayContains,
-              arrayNotContains: i.arrayNotContains,
-              arrayContainsAny: i.arrayContainsAny,
-              arrayNotContainsAny: i.arrayNotContainsAny,
-            );
-          }
-        }
-        if (isSorting) {
-          for (var i in _o) {
-            builder = builder.orderBy(i.field, descending: i.descending);
-          }
-        }
-        if (isSelections) {
-          for (var i in _s) {
-            final v = i.value;
-            final vs = i.values;
-            if (v is Map<String, dynamic> || vs is Iterable<Object?>) {
-              final value = v is Map<String, dynamic> ? v : <String, dynamic>{};
-              final values = List.from(vs ?? []);
-              switch (i.type) {
-                case Selections.endAt:
-                  builder = builder.endAt(values);
-                  break;
-                case Selections.endAtDocument:
-                  builder = builder.endAtDocument(value);
-                  break;
-                case Selections.endBefore:
-                  builder = builder.endBefore(values);
-                  break;
-                case Selections.endBeforeDocument:
-                  builder = builder.endBeforeDocument(value);
-                  break;
-                case Selections.startAfter:
-                  builder = builder.startAfter(values);
-                  break;
-                case Selections.startAfterDocument:
-                  builder = builder.startAfterDocument(value);
-                  break;
-                case Selections.startAt:
-                  builder = builder.startAt(values);
-                  break;
-                case Selections.startAtDocument:
-                  builder = builder.startAtDocument(value);
-                  break;
-                case Selections.none:
-                  break;
-              }
-            }
-          }
-        }
-        if (isLimit) {
-          if (_op.fetchFromLast) {
-            builder = builder.limitToLast(fetchingSize);
-          } else {
-            builder = builder.limit(fetchingSize);
-          }
-        }
-        return builder
-            .execute(isSorting ? sortingSize * data.length : 0)
-            .then((processed) {
-          final docs = processed.map((e) {
-            return InAppDocumentSnapshot(_id, e);
-          }).toList();
-          return InAppQuerySnapshot(raw.id, docs);
-        });
-      });
-    } else {
-      return super.get();
+  Future<InAppQuerySnapshot> get([
+    InAppSource source = InAppSource.cache,
+  ]) async {
+    if (!_hasPipeline) return super.get(source);
+
+    final raw = await super.get(source);
+    final data = raw.docs.map((e) => e.data()).toList(growable: false);
+
+    QueryBuilder builder = QueryBuilder(data);
+
+    for (final q in _q) {
+      builder = builder.where(
+        q.field,
+        isEqualTo: q.isEqualTo,
+        isNotEqualTo: q.isNotEqualTo,
+        isNull: q.isNull,
+        isGreaterThan: q.isGreaterThan,
+        isGreaterThanOrEqualTo: q.isGreaterThanOrEqualTo,
+        isLessThan: q.isLessThan,
+        isLessThanOrEqualTo: q.isLessThanOrEqualTo,
+        whereIn: q.whereIn,
+        whereNotIn: q.whereNotIn,
+        arrayContains: q.arrayContains,
+        arrayNotContains: q.arrayNotContains,
+        arrayContainsAny: q.arrayContainsAny,
+        arrayNotContainsAny: q.arrayNotContainsAny,
+      );
     }
+
+    for (final s in _o) {
+      builder = builder.orderBy(s.field, descending: s.descending);
+    }
+
+    for (final sel in _s) {
+      final v = sel.value;
+      final vs = sel.values;
+      if (v is! Map<String, dynamic> && vs is! Iterable<Object?>) continue;
+      final mapValue =
+          v is Map<String, dynamic> ? v : const <String, dynamic>{};
+      final listValues = vs == null ? const <Object?>[] : List<Object?>.of(vs);
+      switch (sel.type) {
+        case Selections.endAt:
+          builder = builder.endAt(listValues);
+          break;
+        case Selections.endAtDocument:
+          builder = builder.endAtDocument(mapValue);
+          break;
+        case Selections.endBefore:
+          builder = builder.endBefore(listValues);
+          break;
+        case Selections.endBeforeDocument:
+          builder = builder.endBeforeDocument(mapValue);
+          break;
+        case Selections.startAfter:
+          builder = builder.startAfter(listValues);
+          break;
+        case Selections.startAfterDocument:
+          builder = builder.startAfterDocument(mapValue);
+          break;
+        case Selections.startAt:
+          builder = builder.startAt(listValues);
+          break;
+        case Selections.startAtDocument:
+          builder = builder.startAtDocument(mapValue);
+          break;
+        case Selections.none:
+          break;
+      }
+    }
+
+    if (_op.hasLimit) {
+      final size = _op.fetchingSize!;
+      builder =
+          _op.fetchFromLast ? builder.limitToLast(size) : builder.limit(size);
+    }
+
+    final processed = await builder.execute();
+    final docs = <InAppQueryDocumentSnapshot>[];
+    for (final e in processed) {
+      final i = e[_idField] ?? e[_idFieldSecondary];
+      final docId = i is String && i.isNotEmpty ? i : _id;
+      docs.add(InAppQueryDocumentSnapshot(docId, e, doc(docId)));
+    }
+    return InAppQuerySnapshot(raw.id, docs, raw.docChanges, raw.metadata);
   }
 
   @override
-  Stream<InAppQuerySnapshot> snapshots() {
+  Stream<InAppQuerySnapshot> snapshots({bool includeMetadataChanges = false}) {
     final n = _db._addNotifier(path);
-    return Stream.multi((c) {
-      void update() => get().then(c.add);
-      n.addListener(update);
-      c.onCancel = () => n.removeListener(update);
-      _notify();
+    return Stream<InAppQuerySnapshot>.multi((controller) {
+      InAppQuerySnapshot? last;
+      void emit(InAppQuerySnapshot snap) {
+        if (controller.isClosed) return;
+        if (last == snap) return;
+        last = snap;
+        controller.add(snap);
+      }
+
+      void listener() {
+        get().then((s) {
+          if (!controller.isClosed) emit(s);
+        }).catchError((_) {});
+      }
+
+      n.addListener(listener);
+      controller.onCancel = () {
+        n.removeListener(listener);
+        _db._maybeCleanupNotifier(path);
+      };
+
+      Future<void>(() async {
+        try {
+          final s = await get();
+          if (!controller.isClosed) emit(s);
+        } catch (_) {}
+      });
     });
   }
 }

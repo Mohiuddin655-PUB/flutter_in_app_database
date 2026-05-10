@@ -5,7 +5,7 @@ enum InAppFieldValues {
   arrayUnion,
   delete,
   increment,
-  timestamp,
+  serverTimestamp,
   toggle,
   none,
 }
@@ -20,16 +20,22 @@ class InAppFieldValue {
     return InAppFieldValue(where, InAppFieldValues.arrayFilter);
   }
 
-  factory InAppFieldValue.arrayRemove(List<dynamic> elements) {
-    return InAppFieldValue(elements, InAppFieldValues.arrayRemove);
+  factory InAppFieldValue.arrayRemove(List<Object?> elements) {
+    return InAppFieldValue(
+      List.unmodifiable(elements),
+      InAppFieldValues.arrayRemove,
+    );
   }
 
   factory InAppFieldValue.arrayUnify() {
-    return InAppFieldValue(null, InAppFieldValues.arrayUnify);
+    return const InAppFieldValue(null, InAppFieldValues.arrayUnify);
   }
 
-  factory InAppFieldValue.arrayUnion(List<dynamic> elements) {
-    return InAppFieldValue(elements, InAppFieldValues.arrayUnion);
+  factory InAppFieldValue.arrayUnion(List<Object?> elements) {
+    return InAppFieldValue(
+      List.unmodifiable(elements),
+      InAppFieldValues.arrayUnion,
+    );
   }
 
   factory InAppFieldValue.delete() {
@@ -40,11 +46,18 @@ class InAppFieldValue {
     return InAppFieldValue(value, InAppFieldValues.increment);
   }
 
-  factory InAppFieldValue.timestamp([bool asNumberTimestamp = false]) {
-    return InAppFieldValue(asNumberTimestamp, InAppFieldValues.timestamp);
+  factory InAppFieldValue.serverTimestamp([bool asNumberTimestamp = true]) {
+    return InAppFieldValue(asNumberTimestamp, InAppFieldValues.serverTimestamp);
+  }
+
+  factory InAppFieldValue.serverTimestampAsString() {
+    return const InAppFieldValue(false, InAppFieldValues.serverTimestamp);
   }
 
   factory InAppFieldValue.toggle([bool? initial]) {
     return InAppFieldValue(initial, InAppFieldValues.toggle);
   }
+
+  @override
+  String toString() => 'InAppFieldValue(type: $type, value: $value)';
 }

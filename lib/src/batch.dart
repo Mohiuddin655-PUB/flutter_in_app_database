@@ -1,74 +1,179 @@
-import 'database.dart';
+import 'database.dart'
+    show
+        InAppDatabase,
+        InAppDocumentReference,
+        InAppDocument,
+        InAppSetOptions,
+        InAppValue;
 
-enum _BatchOperationType { set, update, delete }
+enum _BatchOpType { set, update, delete }
 
-/// Internal operation details
-class _BatchOperation {
-  final _BatchOperationType type;
+class _BatchOp {
+  final _BatchOpType type;
   final InAppDocumentReference document;
-  final Map<String, dynamic>? data;
-  final InAppSetOptions? options;
+  final InAppDocument? data;
+  final InAppSetOptions options;
 
-  _BatchOperation({
+  const _BatchOp({
     required this.type,
     required this.document,
     this.data,
-    this.options,
+    this.options = InAppSetOptions.defaults,
+  });
+}
+
+class _BatchSnapshot {
+  final InAppDocumentReference document;
+  final InAppDocument? previousData;
+  final bool existed;
+
+  const _BatchSnapshot({
+    required this.document,
+    required this.previousData,
+    required this.existed,
   });
 }
 
 class InAppWriteBatch {
-  InAppWriteBatch();
+  final InAppDatabase _database;
+  final List<_BatchOp> _operations = [];
+  bool _committed = false;
 
-  final List<_BatchOperation> _operations = [];
+  InAppWriteBatch._(this._database);
 
-  /// Add a `set` operation
+  factory InAppWriteBatch() => InAppWriteBatch._(InAppDatabase.instance);
+
+  factory InAppWriteBatch.of(InAppDatabase db) => InAppWriteBatch._(db);
+
+  int get length => _operations.length;
+
+  bool get isEmpty => _operations.isEmpty;
+
+  bool get isNotEmpty => _operations.isNotEmpty;
+
+  bool get isCommitted => _committed;
+
   void set(
     InAppDocumentReference document,
-    Object data, [
+    InAppDocument data, [
     InAppSetOptions? options,
   ]) {
-    if (data is! Map<String, dynamic>) return;
-    _operations.add(_BatchOperation(
-      type: _BatchOperationType.set,
-      document: document,
-      data: data,
-      options: options,
-    ));
+    _ensureNotCommitted();
+    _ensureSameDatabase(document);
+    _operations.add(
+      _BatchOp(
+        type: _BatchOpType.set,
+        document: document,
+        data: Map<String, InAppValue>.of(data),
+        options: options ?? InAppSetOptions.defaults,
+      ),
+    );
   }
 
-  /// Add an `update` operation
-  void update(InAppDocumentReference document, Map<String, dynamic> data) {
-    _operations.add(_BatchOperation(
-      type: _BatchOperationType.update,
-      document: document,
-      data: data,
-    ));
+  void update(InAppDocumentReference document, InAppDocument data) {
+    _ensureNotCommitted();
+    _ensureSameDatabase(document);
+    _operations.add(
+      _BatchOp(
+        type: _BatchOpType.update,
+        document: document,
+        data: Map<String, InAppValue>.of(data),
+      ),
+    );
   }
 
-  /// Add a `delete` operation
   void delete(InAppDocumentReference document) {
-    _operations.add(_BatchOperation(
-      type: _BatchOperationType.delete,
-      document: document,
-    ));
+    _ensureNotCommitted();
+    _ensureSameDatabase(document);
+    _operations.add(_BatchOp(type: _BatchOpType.delete, document: document));
   }
 
-  /// Execute all operations directly (not as Firestore batch)
   Future<void> commit() async {
-    for (final op in _operations) {
-      switch (op.type) {
-        case _BatchOperationType.set:
-          await op.document.set(op.data!, op.options!);
-          break;
-        case _BatchOperationType.update:
-          await op.document.update(op.data!);
-          break;
-        case _BatchOperationType.delete:
-          await op.document.delete();
-          break;
-      }
+    _ensureNotCommitted();
+    if (_operations.isEmpty) {
+      _committed = true;
+      return;
     }
+
+    final ops = List<_BatchOp>.unmodifiable(_operations);
+    final snapshots = await _captureSnapshots(ops);
+
+    _committed = true;
     _operations.clear();
+
+    final completed = <int>[];
+    try {
+      for (var i = 0; i < ops.length; i++) {
+        await _executeOp(ops[i]);
+        completed.add(i);
+      }
+    } catch (error, stack) {
+      await _rollback(completed, snapshots);
+      Error.throwWithStackTrace(error, stack);
+    }
+  }
+
+  Future<List<_BatchSnapshot>> _captureSnapshots(List<_BatchOp> ops) async {
+    final snapshots = <_BatchSnapshot>[];
+    for (final op in ops) {
+      final existing = await op.document.get();
+      final data = existing.data();
+      snapshots.add(
+        _BatchSnapshot(
+          document: op.document,
+          previousData: data == null ? null : Map<String, InAppValue>.of(data),
+          existed: existing.exists,
+        ),
+      );
+    }
+    return snapshots;
+  }
+
+  Future<void> _executeOp(_BatchOp op) async {
+    switch (op.type) {
+      case _BatchOpType.set:
+        await op.document.set(op.data!, op.options);
+        break;
+      case _BatchOpType.update:
+        await op.document.update(op.data!);
+        break;
+      case _BatchOpType.delete:
+        await op.document.delete();
+        break;
+    }
+  }
+
+  Future<void> _rollback(
+    List<int> completedIndexes,
+    List<_BatchSnapshot> snapshots,
+  ) async {
+    for (var i = completedIndexes.length - 1; i >= 0; i--) {
+      final snap = snapshots[completedIndexes[i]];
+      try {
+        if (snap.existed && snap.previousData != null) {
+          await snap.document.set(snap.previousData!);
+        } else {
+          try {
+            await snap.document.delete();
+          } catch (_) {}
+        }
+      } catch (_) {}
+    }
+  }
+
+  void _ensureNotCommitted() {
+    if (_committed) {
+      throw StateError(
+        'A write batch can no longer be used after commit() has been called.',
+      );
+    }
+  }
+
+  void _ensureSameDatabase(InAppDocumentReference document) {
+    if (!identical(document.database, _database)) {
+      throw ArgumentError(
+        'The document "${document.path}" belongs to a different InAppDatabase instance.',
+      );
+    }
   }
 }
